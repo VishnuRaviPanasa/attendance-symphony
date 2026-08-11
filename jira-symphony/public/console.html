@@ -356,6 +356,9 @@ function drawAgents(s){
   host.querySelectorAll("[data-retry]").forEach(b=>{
     b.onclick=()=>post(`/api/task/${encodeURIComponent(b.dataset.retry)}/retry`);
   });
+  host.querySelectorAll("[data-kill]").forEach(b=>{
+    b.onclick=()=>{if(confirm("Kill this agent process?\n\nIt fails for real and Symphony retries it."))post(`/api/task/${encodeURIComponent(b.dataset.kill)}/kill`);};
+  });
 }
 
 function agentCard(a,s){
@@ -408,6 +411,7 @@ function agentCard(a,s){
     ${p&&p.filesWritten&&p.filesWritten.length?`<div class="files">✎ ${p.filesWritten.map(f=>esc(shortFile(f))).join("  ·  ")}</div>`:""}
     ${st==="failed"&&task&&task.error?`<div class="errline">✕ ${esc(task.error)}</div>`:""}
     ${st==="failed"&&task?`<button class="btn ghost retry" data-retry="${esc(task.id)}">Retry task</button>`:""}
+    ${st==="working"&&task?`<button class="btn ghost retry" data-kill="${esc(task.id)}" title="Kill this agent process to demonstrate failure handling">Kill agent</button>`:""}
 
     <div class="meta">
       <span>Started <b>${clock(a.startedAt)}</b></span>

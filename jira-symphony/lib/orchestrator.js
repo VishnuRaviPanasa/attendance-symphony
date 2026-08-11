@@ -293,6 +293,25 @@ export class Orchestrator extends EventEmitter {
     } catch { /* the manifest is a convenience; never let it break a run */ }
   }
 
+  /**
+   * Kill the process running a task.
+   *
+   * This is the deterministic way to demonstrate failure handling. The scope hook is good at
+   * containment but a blocked agent usually recovers and still succeeds, so it cannot be relied
+   * on to produce a FAILED card on cue. Killing the child is a genuine failure: the process
+   * exits with no `result` event, the runner reports it, and the normal retry path takes over.
+   * Nothing about the failure is simulated.
+   */
+  killTask(taskId) {
+    const task = this.tasks.find((t) => String(t.id) === String(taskId));
+    if (!task || !task.agentId) return false;
+    const agent = this.agents.find((a) => a.id === task.agentId);
+    if (!agent?.handle) return false;
+    this.log("w", `${task.key}: killing ${agent.id} (operator request)`, agent.id);
+    agent.handle.kill();
+    return true;
+  }
+
   /** Manually re-queue a failed task. */
   retry(taskId) {
     const task = this.tasks.find((t) => String(t.id) === String(taskId));

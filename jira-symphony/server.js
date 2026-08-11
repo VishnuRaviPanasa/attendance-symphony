@@ -19,7 +19,7 @@ import { Orchestrator } from "./lib/orchestrator.js";
 import { FileTicketSource } from "./lib/sources/file-tickets.js";
 import { JiraTicketSource } from "./lib/sources/jira-tickets.js";
 import { resolveCli } from "./lib/agent-runner.js";
-import { DEMO_TICKETS } from "./demo/tickets.js";
+import { DEMO_TICKETS, FAILURE_TICKET } from "./demo/tickets.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -154,6 +154,12 @@ app.post("/api/task/:id/retry", (req, res) => {
   res.json({ ok });
 });
 
+/** Kill a running agent — the deterministic failure/retry demonstration. */
+app.post("/api/task/:id/kill", (req, res) => {
+  const ok = orch.killTask(req.params.id);
+  res.json({ ok });
+});
+
 /**
  * Create demo tickets.
  *
@@ -163,6 +169,13 @@ app.post("/api/task/:id/retry", (req, res) => {
  * of the demo, so the endpoint deliberately keeps it.
  */
 app.post("/api/demo/tickets", (req, res) => {
+  // `failure: true` seeds the ticket engineered to be blocked by the scope hook, so the
+  // FAILED → RETRYING → FAILED path can be demonstrated on demand.
+  if (req.body?.failure) {
+    const written = fileSource.seed([FAILURE_TICKET]);
+    orch.log("w", `failure-demo ticket ${FAILURE_TICKET.key} written to tickets/inbox`);
+    return res.json({ ok: true, written });
+  }
   const n = Math.max(1, Math.min(DEMO_TICKETS.length, +(req.body?.count ?? 3)));
   const only = req.body?.ids;
   const chosen = Array.isArray(only) && only.length
@@ -238,7 +251,10 @@ app.post("/api/replay/stop", (_req, res) => {
 function revertWorkspace() {
   return new Promise((resolve) => {
     execFile("git", ["-C", REPO_ROOT, "checkout", "--", "attendance-api"], (err1) => {
-      execFile("git", ["-C", REPO_ROOT, "clean", "-fd", "attendance-api/routes", "attendance-api/tests", "attendance-api/docs"], (err2, stdout) => {
+      // -x is required: agent output is gitignored, and plain `git clean -fd` skips ignored
+      // files, so a reset silently left the previous run's work in place. Tracked files
+      // (routes/health.js, tests/store.test.js) are never touched by clean.
+      execFile("git", ["-C", REPO_ROOT, "clean", "-fdx", "attendance-api/routes", "attendance-api/tests", "attendance-api/docs"], (err2, stdout) => {
         resolve({
           ok: !err2,
           checkout: err1 ? err1.message.split("\n")[0] : "ok",
