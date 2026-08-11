@@ -17,6 +17,17 @@ const PORT = +(process.env.PORT || 4400);
 const app = express();
 app.use(express.json());
 
+// The attendance app is opened straight from disk (file://), whose Origin is "null", so it
+// cannot call this API without permissive CORS. This is a local demo service serving seeded
+// data on localhost — do not copy this policy to anything real.
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 // A stable middleware that delegates to whichever router is current, so reloading
 // never has to touch the express app itself.
 let current = express.Router();

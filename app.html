@@ -424,6 +424,38 @@ svg .axis-lbl{fill:var(--muted);font-size:10.5px;font-family:var(--font)}
 
 .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:13.5px}
 
+/* ---- Symphony API bridge: sections that appear only once an agent ships them ---- */
+.api-strip{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 15px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);font-size:12.5px;color:var(--muted);margin-bottom:14px;box-shadow:var(--shadow-sm)}
+.api-strip b{color:var(--ink-2)}
+.api-strip .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.api-strip.up .dot{background:var(--present);animation:apiPulse 1.8s infinite}
+.api-strip.down .dot{background:var(--absent)}
+.api-strip code{font-family:var(--mono);font-size:11.5px;background:var(--surface-3);padding:2px 6px;border-radius:5px;color:var(--ink-2)}
+@keyframes apiPulse{0%{box-shadow:0 0 0 0 var(--present-soft)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.api-kpis{display:flex;gap:26px;margin:4px 0 14px}
+.api-kpi .v{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--accent)}
+.api-kpi .k{font-size:12px;color:var(--muted);margin-top:5px;font-weight:600}
+.api-chips{display:flex;flex-wrap:wrap;gap:7px}
+.api-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted)}
+.api-chip i{width:8px;height:8px;border-radius:50%;flex:none}
+.api-chip b{color:var(--ink-2)}
+.api-sub{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px}
+.api-dept .row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12.5px}
+.api-dept .nm{width:104px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none}
+.api-dept .bar{flex:1;height:8px;border-radius:5px;background:var(--surface-3);overflow:hidden}
+.api-dept .bar i{display:block;height:100%;border-radius:5px;background:var(--accent)}
+.api-dept .pc{width:38px;text-align:right;color:var(--muted);flex:none}
+.api-note{font-size:11.5px;color:var(--muted-2);margin-top:14px;line-height:1.5}
+.api-note code{font-family:var(--mono);font-size:11px}
+.ep-list{display:flex;flex-direction:column;gap:6px}
+.ep-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2)}
+.ep-m{font-family:var(--mono);font-size:10px;font-weight:800;padding:2px 7px;border-radius:5px;flex:none}
+.ep-m.get{background:var(--leave-soft);color:var(--leave)} .ep-m.post{background:var(--present-soft);color:var(--present)}
+.ep-p{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);flex:1;overflow:hidden;text-overflow:ellipsis}
+.ep-tag{font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;background:var(--accent-soft);color:var(--accent);flex:none}
+.ep-tag.base{background:var(--surface-3);color:var(--muted-2)}
+.mono-err{font-family:var(--mono);font-size:11.5px;color:var(--absent);line-height:1.6}
+
 @media (max-width:1150px){
   .chart-grid{grid-template-columns:1fr}
   .sym-cols{grid-template-columns:1fr}
@@ -700,6 +732,69 @@ function deptRates(){
   return Object.keys(m).map(k=>({dept:k,rate:m[k].total?m[k].present/m[k].total:0,total:m[k].total})).sort((a,b)=>b.rate-a.rate);
 }
 
+/* ================= SYMPHONY API BRIDGE =================
+   Features that Symphony agents ship land in attendance-api/routes/ and go live immediately.
+   This layer discovers what exists right now and lets the screens below light up sections that
+   simply are not there before an agent has built them.
+
+   Everything degrades quietly: with the API stopped the app behaves exactly as it always did,
+   entirely on localStorage. */
+const API_BASE = (()=>{ try{ return localStorage.getItem("attendpro.apiBase")||"http://localhost:4400"; }catch(e){ return "http://localhost:4400"; } })();
+const API = { up:false, endpoints:[], files:[], checkedAt:0, error:null };
+
+async function apiGet(path, ms=2500){
+  const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(), ms);
+  try{
+    const r=await fetch(API_BASE+path,{signal:ctl.signal});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+async function apiPost(path, body, ms=2500){
+  const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(), ms);
+  try{
+    const r=await fetch(API_BASE+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{}),signal:ctl.signal});
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+
+/** Ask the API which routes are mounted. Never throws. */
+async function discoverAPI(){
+  try{
+    const r=await apiGet("/api/_routes");
+    API.up=true; API.error=null;
+    API.files=(r.mounted||[]).map(m=>m.file);
+    API.endpoints=(r.mounted||[]).flatMap(m=>(m.endpoints||[]).map(e=>({...e,file:m.file,meta:m.meta})));
+  }catch(e){
+    API.up=false; API.endpoints=[]; API.files=[]; API.error=e.name==="AbortError"?"timed out":e.message;
+  }
+  API.checkedAt=Date.now();
+  return API;
+}
+/** Is a given endpoint live right now? */
+function hasEndpoint(method,path){
+  return API.endpoints.some(e=>e.method===method&&e.path===path);
+}
+/** health.js ships with the repo; anything else was built by an agent. */
+function agentBuiltCount(){ return API.files.filter(f=>f!=="health.js").length; }
+
+/** Small banner telling the operator whether the agent-built API is reachable. */
+function apiBanner(){
+  if(API.up){
+    const n=agentBuiltCount();
+    return `<div class="api-strip up">
+      <span class="dot"></span>
+      <b>Attendance API connected</b>
+      <span>${API.endpoints.length} endpoint${API.endpoints.length===1?"":"s"} live${n?` · <b style="color:var(--accent)">${n} shipped by Symphony agents</b>`:""}</span>
+    </div>`;
+  }
+  return `<div class="api-strip down">
+    <span class="dot"></span>
+    <b>Attendance API not reachable</b>
+    <span>Start it with <code>cd attendance-api &amp;&amp; npm start</code> — the app keeps working offline without it.</span>
+  </div>`;
+}
+
 /* ================= TOAST / MODAL ================= */
 function toast(title,desc,kind){
   const t=el("div","toast "+(kind||""));
@@ -837,13 +932,106 @@ function renderDashboard(c){
         <div class="card-h"><h3>Today's activity</h3><span class="sub">latest check-ins</span></div>
         <div id="today-feed"></div>
       </div>
-    </div>`;
+    </div>
+    <div id="agent-built"></div>`;
   c.appendChild(v);
   drawTrend($("#chart-trend",v),wk);
   drawDonut($("#chart-donut",v),counts);
   drawDeptBars($("#chart-dept",v),deptRates());
   renderTodayFeed($("#today-feed",v));
+  renderAgentBuilt($("#agent-built",v));
 }
+
+/* ---------- Sections that exist only because an agent built them ---------- */
+async function renderAgentBuilt(host){
+  if(!host)return;
+  host.innerHTML=`<div class="section-title" style="margin-top:26px">Shipped by Symphony</div>
+    <div class="card card-pad"><div class="empty" style="padding:18px">Checking the attendance API…</div></div>`;
+
+  await discoverAPI();
+
+  if(!API.up){
+    host.innerHTML=`<div class="section-title" style="margin-top:26px">Shipped by Symphony</div>${apiBanner()}`;
+    return;
+  }
+  if(!agentBuiltCount()){
+    host.innerHTML=`<div class="section-title" style="margin-top:26px">Shipped by Symphony</div>
+      ${apiBanner()}
+      <div class="card card-pad"><div class="empty" style="padding:24px">
+        No agent-built features yet.<br>
+        <span style="color:var(--muted-2)">Open the Symphony console, create a ticket, and this section fills itself in.</span>
+      </div></div>`;
+    return;
+  }
+
+  host.innerHTML=`<div class="section-title" style="margin-top:26px">Shipped by Symphony</div>
+    ${apiBanner()}
+    <div class="chart-grid" style="grid-template-columns:1.15fr 1fr">
+      <div id="ab-summary"></div>
+      <div id="ab-endpoints"></div>
+    </div>`;
+
+  renderEndpointList($("#ab-endpoints",host));
+  if(hasEndpoint("GET","/api/attendance/summary")) renderApiSummary($("#ab-summary",host));
+  else $("#ab-summary",host).innerHTML=`<div class="card card-pad"><div class="card-h"><h3>Server-side summary</h3></div>
+    <div class="empty" style="padding:20px">Not built yet — ticket ATT-101 adds <code>GET /api/attendance/summary</code>.</div></div>`;
+}
+
+/** Live data straight from the endpoint an agent wrote. */
+async function renderApiSummary(host){
+  if(!host)return;
+  host.innerHTML=`<div class="card card-pad"><div class="card-h"><h3>Server-side summary</h3><span class="sub">live from the API</span></div>
+    <div class="empty" style="padding:20px">Loading…</div></div>`;
+  let d;
+  try{ d=await apiGet("/api/attendance/summary"); }
+  catch(e){
+    host.innerHTML=`<div class="card card-pad"><div class="card-h"><h3>Server-side summary</h3></div>
+      <div class="empty" style="padding:20px">Endpoint failed: ${e.message}</div></div>`;
+    return;
+  }
+  const t=d.totals||{};
+  const rate=d.attendanceRate!=null?Math.round(d.attendanceRate*100):null;
+  const order=["present","late","remote","leave","absent","unmarked"];
+  host.innerHTML=`<div class="card card-pad">
+    <div class="card-h">
+      <h3>Server-side summary</h3>
+      <span class="sub">GET /api/attendance/summary · ${esc2(d.date||"")}</span>
+    </div>
+    <div class="api-kpis">
+      ${rate!=null?`<div class="api-kpi"><div class="v tnum">${rate}%</div><div class="k">attendance rate</div></div>`:""}
+      <div class="api-kpi"><div class="v tnum">${d.headcount??"—"}</div><div class="k">headcount</div></div>
+    </div>
+    <div class="api-chips">
+      ${order.filter(k=>t[k]!=null).map(k=>`<span class="api-chip"><i style="background:${STATUS[k]?STATUS[k].color:"var(--muted)"}"></i>${STATUS[k]?STATUS[k].label:k} <b class="tnum">${t[k]}</b></span>`).join("")}
+    </div>
+    ${Array.isArray(d.byDepartment)&&d.byDepartment.length?`
+      <div class="api-sub">By department</div>
+      <div class="api-dept">${d.byDepartment.slice(0,6).map(r=>`
+        <div class="row"><span class="nm">${esc2(r.dept)}</span>
+        <span class="bar"><i style="width:${Math.round((r.rate||0)*100)}%"></i></span>
+        <span class="pc tnum">${Math.round((r.rate||0)*100)}%</span></div>`).join("")}</div>`:""}
+    <div class="api-note">These numbers are computed by the server, not by this page.</div>
+  </div>`;
+}
+
+/** What is mounted right now, and which of it an agent produced. */
+function renderEndpointList(host){
+  if(!host)return;
+  const rows=API.endpoints.map(e=>{
+    const agent=e.file!=="health.js";
+    return `<div class="ep-row">
+      <span class="ep-m ${e.method.toLowerCase()}">${e.method}</span>
+      <span class="ep-p">${esc2(e.path)}</span>
+      ${agent?`<span class="ep-tag">agent-built</span>`:`<span class="ep-tag base">baseline</span>`}
+    </div>`;
+  }).join("");
+  host.innerHTML=`<div class="card card-pad">
+    <div class="card-h"><h3>Live endpoints</h3><span class="sub">discovered, not hard-coded</span></div>
+    <div class="ep-list">${rows}</div>
+    <div class="api-note">The API auto-discovers <code>routes/*.js</code>. Each agent adds its own file, so nothing had to be wired up by hand.</div>
+  </div>`;
+}
+function esc2(s){return String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
 
 function drawTrend(host,wk){
   const days=wk; const W=560,H=220,pl=34,pr=12,pt=14,pb=28;
@@ -975,6 +1163,29 @@ function handleAtt(id,act){
   else if(act==="leave"){DB.attendance[id][tk]={status:"leave",checkIn:null,checkOut:null,hours:0};toast("Marked on leave","","");}
   else if(act==="reset"){delete DB.attendance[id][tk];toast("Reset","Attendance cleared","");}
   saveDB();updateSymBadge();
+  validateThroughApi(id,tk);
+}
+
+/**
+ * Check the record we just wrote against the validation endpoint from ticket ATT-103.
+ * Advisory only and fire-and-forget: the app never depends on the API being up, and a
+ * check-in is never blocked by it.
+ */
+async function validateThroughApi(empId,dateKey){
+  const rec=recFor(empId,dateKey);
+  if(!rec)return;
+  if(!API.up||!hasEndpoint("POST","/api/attendance/validate")){
+    if(Date.now()-API.checkedAt>15000) await discoverAPI();
+    if(!API.up||!hasEndpoint("POST","/api/attendance/validate"))return;
+  }
+  try{
+    const r=await apiPost("/api/attendance/validate",{empId,date:dateKey,status:rec.status,checkIn:rec.checkIn,checkOut:rec.checkOut});
+    if(r&&r.valid===false&&Array.isArray(r.errors)&&r.errors.length){
+      toast("Validation failed",r.errors[0],"warn");
+    }else if(r&&r.valid===true){
+      toast("Validated by the API","Checked against POST /api/attendance/validate","ok");
+    }
+  }catch(e){ /* API down mid-session — the app carries on unaffected */ }
 }
 function toH(s){const p=s.split(":");return +p[0]+ (+p[1])/60;}
 
@@ -1048,11 +1259,48 @@ function renderReports(c){
       <div id="rp-summary" style="font-size:12.5px;color:var(--muted)"></div>
       <button class="btn btn-ghost btn-sm" id="rp-export">${svg(IC.report,2.2)} Export CSV</button>
     </div>
-    <div class="card"><div class="tbl-wrap"><table class="tbl" id="rp-tbl"></table></div></div>`;
+    <div class="card"><div class="tbl-wrap"><table class="tbl" id="rp-tbl"></table></div></div>
+    <div id="rp-monthly"></div>`;
   c.appendChild(v);
   ["rp-range","rp-dept","rp-status"].forEach(id=>{const el2=$("#"+id,v);if(el2)el2.addEventListener("change",()=>drawReport(v));});
   $("#rp-export",v).addEventListener("click",()=>exportCSV(v));
   drawReport(v);
+  renderMonthlyReport($("#rp-monthly",v));
+}
+
+/** The monthly roll-up ticket ATT-102 produces. Absent until an agent has built it. */
+async function renderMonthlyReport(host){
+  if(!host)return;
+  await discoverAPI();
+  if(!API.up||!hasEndpoint("GET","/api/reports/monthly")){
+    host.innerHTML="";   // stay invisible rather than advertise a feature that does not exist
+    return;
+  }
+  const month=todayKey().slice(0,7);
+  host.innerHTML=`<div class="section-title" style="margin-top:26px">Monthly roll-up <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)">— shipped by Symphony (ATT-102)</span></div>
+    <div class="card card-pad"><div class="empty" style="padding:20px">Loading ${month}…</div></div>`;
+  let d;
+  try{ d=await apiGet("/api/reports/monthly?month="+encodeURIComponent(month)); }
+  catch(e){ host.innerHTML=`<div class="section-title" style="margin-top:26px">Monthly roll-up</div>
+    <div class="card card-pad"><div class="mono-err">GET /api/reports/monthly failed — ${esc2(e.message)}</div></div>`; return; }
+
+  const emps=Array.isArray(d.employees)?d.employees:[];
+  const cols=["present","late","remote","leave","absent"];
+  host.innerHTML=`<div class="section-title" style="margin-top:26px">Monthly roll-up <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)">— shipped by Symphony (ATT-102)</span></div>
+    <div class="api-strip up"><span class="dot"></span><b>GET /api/reports/monthly?month=${esc2(d.month||month)}</b>
+      <span>${d.workingDays??"—"} working days · ${emps.length} employees · computed server-side</span></div>
+    <div class="card"><div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Employee</th><th>Department</th>${cols.map(c=>`<th>${STATUS[c]?STATUS[c].label:c}</th>`).join("")}<th>Hours</th><th>Rate</th></tr></thead>
+      <tbody>${emps.slice(0,60).map(e=>{
+        const c2=e.counts||{};
+        const rate=e.attendanceRate!=null?Math.round(e.attendanceRate*100)+"%":"—";
+        return `<tr><td><span class="nm" style="font-size:13px">${esc2(e.name||e.id)}</span></td>
+          <td style="color:var(--muted)">${esc2(e.dept||"")}</td>
+          ${cols.map(k=>`<td class="tnum" style="color:var(--muted)">${c2[k]??0}</td>`).join("")}
+          <td class="tnum">${e.totalHours!=null?(+e.totalHours).toFixed(1)+"h":"—"}</td>
+          <td class="tnum" style="color:var(--ink-2);font-weight:700">${rate}</td></tr>`;
+      }).join("")}</tbody></table></div></div>`;
+  if(!emps.length) host.querySelector("tbody").innerHTML=`<tr><td colspan="9"><div class="empty">No data for ${esc2(month)}.</div></td></tr>`;
 }
 function reportRows(v){
   const days=+$("#rp-range",v).value;
