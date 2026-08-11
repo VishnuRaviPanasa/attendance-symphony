@@ -25,6 +25,8 @@ Check before you present:
 - [ ] Browser zoom ~110 %, console in fullscreen (⛶ top right)
 - [ ] A terminal open on `attendance-symphony/` for the closing proof
 - [ ] Network is up (agents need the API)
+- [ ] **`index.html` open in a second tab, signed in as HR Admin, scrolled to the bottom** —
+      it must read *"No agent-built features yet."* If it does not, you have not reset.
 
 ### Timing — read this before you plan the meeting
 
@@ -56,9 +58,21 @@ If you need it shorter, use two tickets instead of three (`{"ids":["101","103"]}
 
 ## The script (~5 minutes of talking + 2–7 minutes of agent time)
 
-### 1 · The application (0:00)
-Open `index.html`. Dashboard, attendance, reports.
-> "This is our Attendance Management application."
+### 1 · The application (0:00) — **establish the "before"**
+Open `index.html` and sign in as HR Admin. Show the dashboard, then **scroll to the bottom**:
+
+```
+SHIPPED BY SYMPHONY
+● Attendance API connected · 1 endpoint live
+        No agent-built features yet.
+  Open the Symphony console, create a ticket, and this section fills itself in.
+```
+
+> "This is our Attendance Management application. Note this section at the bottom — it's empty.
+> Nothing has been built yet. Remember what it looks like."
+
+**This is the single most important 15 seconds of the demo.** Without the "before", the "after"
+proves nothing. Leave this tab open — you will come back to it.
 
 ### 2 · The console (0:45)
 Switch to <http://localhost:4300>.
@@ -117,16 +131,40 @@ If someone asks whether the bar is real, point at the `ⓘ` under it:
 Cards flip to **● COMPLETED**, 100 %, with completion time, files written, tests, and cost.
 > "Done. Files written, tests passed, results recorded."
 
-### 10 · The proof
-In the terminal:
+### 10 · **Back to the application — the payoff**
+Switch to the attendance app tab and **press F5**. Scroll to the bottom.
+
+The section that said *"No agent-built features yet"* is now populated:
+
+```
+SHIPPED BY SYMPHONY
+● Attendance API connected · 4 endpoints live · 3 shipped by Symphony agents
+
+  Server-side summary                    Live endpoints
+  73%        22                          GET  /api/health              BASELINE
+  attendance rate  headcount             GET  /api/attendance/summary  AGENT-BUILT
+  ● Present 10  ● Late 3  ● Remote 3     GET  /api/reports/monthly     AGENT-BUILT
+  BY DEPARTMENT                          POST /api/attendance/validate AGENT-BUILT
+  Product ████████████ 100%
+```
+
+> "Same page. I only refreshed it. That section was empty five minutes ago — those panels exist
+> because the agents built the endpoints behind them."
+
+Point at the department bars, then at the app's own chart higher up the page:
+> "And these agree with the app's own numbers — the difference is that these are computed on the
+> server, by code that didn't exist when we started."
+
+Open **Reports** too: a *Monthly roll-up* table is now there, which ATT-102 produced.
+
+Then the code itself:
 ```bash
 git status --short attendance-api      # the files they created
 cd attendance-api && npm test          # 37 tests pass — 28 written by the agents
-curl "http://localhost:4400/api/attendance/summary"
-curl "http://localhost:4400/api/reports/monthly?month=2026-07"
 ```
-> "Here's the code they wrote, their own tests passing, and the endpoints live and returning
-> real data. I never restarted the server — the API picks new routes up on its own."
+> "Here's the code, and their own tests passing. I never restarted anything — the API discovers
+> new route files on its own, which is also why three agents could work at once without
+> colliding."
 
 ### 11 · Close
 > "The point isn't that it built an API. It's that **I didn't assign or run any of it.**
@@ -168,6 +206,8 @@ if you specifically want to show a FAILED card.
 | "Claude Code CLI not found" | Restart the console from a normal terminal (not inside a Claude Code session). |
 | A route 404s | `curl localhost:4400/api/_routes` shows `loadErrors`. If it mentions a missing export from `lib/store.js`, restart `attendance-api`. |
 | Agents very slow / rate limited | Cards show a rate-limit warning. Drop **Max parallel** to 2. |
+| App still says "No agent-built features yet" after the run | Hard-refresh (Ctrl+F5). If it still shows nothing, check `curl localhost:4400/api/_routes` — if that lists the routes, it is a browser cache issue, not an agent issue. |
+| App says "Attendance API not reachable" | `cd attendance-api && npm start`. The app keeps working offline regardless — only the Symphony section is affected. |
 | Everything is broken | Fall back to **replay** (below). |
 
 ### Replay — the safety net
