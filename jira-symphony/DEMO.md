@@ -26,11 +26,35 @@ Check before you present:
 - [ ] A terminal open on `attendance-symphony/` for the closing proof
 - [ ] Network is up (agents need the API)
 
-**Rehearse the whole thing twice.** Runs take 2–3 minutes and vary.
+### Timing — read this before you plan the meeting
+
+Runs vary a lot, because the agents genuinely iterate. Measured across four real runs:
+
+| | fastest | slowest |
+|---|---|---|
+| Wall clock, 3 tickets | **2m 10s** | **7m 0s** |
+| ATT-101 (summary) | 69 s | 77 s |
+| ATT-102 (monthly) | 86 s | 313 s |
+| ATT-103 (validation) | 79 s | 410 s |
+| Cost | $0.72 | $1.45 |
+
+**Budget 7 minutes for the agent phase and plan to talk over it.** The variance comes from
+agents writing their own tests and then iterating when a test fails — which is real work, and
+worth narrating rather than apologising for.
+
+Two things make the wait comfortable:
+- **ATT-101 almost always finishes first, in ~80 s.** You get a COMPLETED card early to point
+  at while the other two are still running.
+- The live activity stream always has something moving. Narrate it.
+
+If you need it shorter, use two tickets instead of three (`{"ids":["101","103"]}`) or set
+`AGENT_EFFORT=low` in `.env`.
+
+**Rehearse the whole thing twice** — once to check it works, once to practise the narration.
 
 ---
 
-## The script (~7 minutes)
+## The script (~5 minutes of talking + 2–7 minutes of agent time)
 
 ### 1 · The application (0:00)
 Open `index.html`. Dashboard, attendance, reports.
@@ -80,7 +104,7 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
 Three PIDs, all created in the same second.
 > "Three real Claude Code processes. This isn't an animation."
 
-### 8 · Live progress (2:30 – 5:30)
+### 8 · Live progress (2:30 — until they finish, 1–6 min)
 Narrate what the cards say — don't invent:
 > "Agent 01 is reading the repository. Agent 02 is already writing code — that's a real file
 > path. Agent 03 just ran the test suite."
@@ -89,11 +113,11 @@ If someone asks whether the bar is real, point at the `ⓘ` under it:
 > "That line names the event that last moved the bar. `tool call: Write`. It only moves when
 > something actually happens — if an agent is thinking, it sits still."
 
-### 9 · Completion (~5:30)
+### 9 · Completion
 Cards flip to **● COMPLETED**, 100 %, with completion time, files written, tests, and cost.
 > "Done. Files written, tests passed, results recorded."
 
-### 10 · The proof (6:00)
+### 10 · The proof
 In the terminal:
 ```bash
 git status --short attendance-api      # the files they created
@@ -104,7 +128,7 @@ curl "http://localhost:4400/api/reports/monthly?month=2026-07"
 > "Here's the code they wrote, their own tests passing, and the endpoints live and returning
 > real data. I never restarted the server — the API picks new routes up on its own."
 
-### 11 · Close (6:45)
+### 11 · Close
 > "The point isn't that it built an API. It's that **I didn't assign or run any of it.**
 > Symphony found the work, picked the agents, and ran them in parallel — and everything on that
 > screen came from what the agents actually did."
@@ -168,10 +192,11 @@ not live, and the banner is there so nobody can mistake it. Never present a repl
 
 | | |
 |---|---|
-| Wall clock, 3 agents | ~130 s (234 s of agent work) |
-| Cost | ~$1.08 for three tickets (~$0.25–0.35 each) |
-| Output | 3 endpoints + 3 test files, 32 tests passing |
-| Agents' own tests | 23 of the 32 |
+| Wall clock, 3 agents | 2–7 min (measured 130 s and 417 s) |
+| Agent work compressed | 800 s of work in 417 s wall clock |
+| Cost | $0.72–$1.45 for three tickets |
+| Output | 3 endpoints + 3 test files |
+| Test suite | 37 passing — 28 written by the agents |
 
 ## Questions you'll get
 
