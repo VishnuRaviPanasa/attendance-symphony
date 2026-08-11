@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Symphony-style orchestrator: watch Jira for tickets assigned to you and auto-dispatch agents (with live dashboard + Jira write-back).",
+  "description": "Symphony orchestrator: discovers tickets and runs real Claude Code agents in parallel, with a live operations console.",
   "scripts": {
     "start": "node server.js",
-    "live": "node live.mjs"
+    "test": "node --test \"tests/**/*.test.js\"",
+    "run-one": "node scripts/run-one.mjs"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.19.2"
