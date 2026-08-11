@@ -121,7 +121,7 @@ Cards flip to **● COMPLETED**, 100 %, with completion time, files written, tes
 In the terminal:
 ```bash
 git status --short attendance-api      # the files they created
-cd attendance-api && npm test          # 32 tests pass — 23 written by the agents
+cd attendance-api && npm test          # 37 tests pass — 28 written by the agents
 curl "http://localhost:4400/api/attendance/summary"
 curl "http://localhost:4400/api/reports/monthly?month=2026-07"
 ```

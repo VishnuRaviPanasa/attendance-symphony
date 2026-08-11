@@ -1,18 +1,44 @@
-# AttendPro — Attendance Management + Symphony Build Console
+# AttendPro — Attendance Management + Symphony
 
-A self-contained web app you can show your manager. Two things in one:
+Three things live here. **Read this first, because two of them look alike and only
+one of them is real.**
 
-1. **Attendance Management System** — real login, dashboard, employee directory,
-   check-in/check-out, reports & CSV export. Data is saved in the browser
-   (`localStorage`), so it persists between visits with no server or install.
-2. **Symphony Build Console** — a live view (inspired by
-   [OpenAI Symphony](https://github.com/openai/symphony)) that shows multiple
-   autonomous **agents working in parallel** to implement features: an
-   orchestrator files "issues" on a task board, dispatches them to agents up to a
-   concurrency limit (backpressure), and each agent streams through the real
-   Symphony run phases — `PreparingWorkspace → BuildingPrompt →
-   LaunchingAgentProcess → InitializingSession → StreamingTurn → Finishing` —
-   producing proof-of-work (tokens, runtime, +/- lines, PRs, CI).
+| | What it is | Real or simulated |
+|---|---|---|
+| **`jira-symphony/`** | **Symphony Operations Console** — spawns real Claude Code processes that build real features, in parallel | **REAL execution** |
+| `index.html` | The AttendPro attendance app (login, dashboard, reports, `localStorage`) | Real app |
+| `symphony-dashboard.html` | The older standalone "agents in parallel" screen | **Simulated — animation only** |
+
+## ▶ For the manager demo, use `jira-symphony/`
+
+```bash
+cd attendance-api && npm start      # the API the agents build → http://localhost:4400
+cd jira-symphony  && npm start      # the console             → http://localhost:4300
+```
+
+Open <http://localhost:4300>, click **Create tickets**, and then do nothing. Symphony discovers
+the tickets from disk, assigns them to agents, and runs real `claude` processes in parallel.
+Progress on screen only moves when those processes emit events.
+
+- **[jira-symphony/DEMO.md](jira-symphony/DEMO.md)** — the manager script and operator runbook
+- **[jira-symphony/README.md](jira-symphony/README.md)** — architecture and how progress is derived
+
+Measured: 3 agents, 800 s of agent work compressed into ~2–7 min wall clock, ~$0.72–1.45,
+producing 3 live endpoints and 3 test files (37 tests pass; 28 of them written by the agents).
+
+## ⚠ The older simulated screens
+
+`symphony-dashboard.html`, `symphony-app.html` and the **Symphony Build** tab inside
+`index.html` are a **client-side simulation** — progress advances on a `setInterval` and the
+token counts come from `Math.random()`. They are kept for reference and as a projector fallback.
+
+**Do not present them as real agent activity.** If you want a fallback that is still truthful,
+use the console's replay mode instead: it re-plays a recorded transcript of agents that genuinely
+ran, behind a permanent REPLAY banner.
+
+---
+
+## The attendance app itself
 
 ## Two ways to open it
 
@@ -71,9 +97,8 @@ On the login screen, click a **demo account card** to auto-fill the credentials.
 
 ## Notes
 
-- The Symphony console is a **faithful simulation** of the Symphony orchestration
-  model — deterministic and reliable for a live demo (no API keys, nothing to fail
-  on stage). The phase names, states, concurrency/backpressure and proof-of-work
-  mirror the real spec. It can later be wired to real coding agents if desired.
+- The Symphony console **inside `index.html`** and `symphony-dashboard.html` is a
+  simulation — kept for reference. The real one now exists: see `jira-symphony/`,
+  which spawns actual Claude Code processes. Do not mix them up when presenting.
 - To reset all demo data to the seeded state: open the browser console and run
   `localStorage.clear()`, then refresh.
