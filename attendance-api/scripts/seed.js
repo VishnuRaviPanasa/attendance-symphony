@@ -88,6 +88,30 @@ function seed() {
     }
   }
 
+  // Today is overwritten with the SAME hand-authored spread the browser app uses
+  // (../../index.html:657-658). Both seeds share the mulberry(20260722) employee loop, so the
+  // 22 employees are already identical — but the attendance loops consume the PRNG differently
+  // (90 days here vs 30 there), so today's figures diverged. That put contradictory numbers on
+  // one screen: the app's own department chart said Engineering 71% while the agent-built API
+  // panel beside it said 100%. Pinning today makes the two agree.
+  const tkey = fmtDate(today);
+  if (!isWeekend(today)) {
+    const spread = ["unmarked", "present", "late", "absent", "present", "remote", "present", "leave",
+      "present", "late", "present", "remote", "present", "absent", "present", "late", "remote",
+      "present", "leave", "present", "present", "unmarked"];
+    employees.forEach((e, i) => {
+      const st = spread[i] || "present";
+      if (st === "unmarked") { delete attendance[e.id][tkey]; return; }
+      if (st === "absent" || st === "leave") {
+        attendance[e.id][tkey] = { status: st, checkIn: null, checkOut: null, hours: 0 };
+        return;
+      }
+      const inH = st === "late" ? 9.4 + rnd() * 1.0 : 8.5 + rnd() * 0.7;
+      // still at work — no checkOut yet, matching the app
+      attendance[e.id][tkey] = { status: st, checkIn: hhmm(inH), checkOut: null, hours: 0 };
+    });
+  }
+
   return {
     employees,
     attendance,

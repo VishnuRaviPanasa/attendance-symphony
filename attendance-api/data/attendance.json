@@ -644,12 +644,6 @@
         "checkIn": "09:05",
         "checkOut": "18:16",
         "hours": 8.2
-      },
-      "2026-08-11": {
-        "status": "present",
-        "checkIn": "08:57",
-        "checkOut": "18:05",
-        "hours": 8.1
       }
     },
     "E02": {
@@ -1032,8 +1026,8 @@
         "hours": 8.9
       },
       "2026-08-11": {
-        "status": "absent",
-        "checkIn": null,
+        "status": "present",
+        "checkIn": "08:32",
         "checkOut": null,
         "hours": 0
       }
@@ -1418,8 +1412,8 @@
         "hours": 0
       },
       "2026-08-11": {
-        "status": "leave",
-        "checkIn": null,
+        "status": "late",
+        "checkIn": "10:07",
         "checkOut": null,
         "hours": 0
       }
@@ -2190,10 +2184,10 @@
         "hours": 8.7
       },
       "2026-08-11": {
-        "status": "remote",
-        "checkIn": "08:36",
-        "checkOut": "18:00",
-        "hours": 8.4
+        "status": "present",
+        "checkIn": "08:31",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E06": {
@@ -2577,9 +2571,9 @@
       },
       "2026-08-11": {
         "status": "remote",
-        "checkIn": "08:39",
-        "checkOut": "17:24",
-        "hours": 7.8
+        "checkIn": "08:36",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E07": {
@@ -2963,9 +2957,9 @@
       },
       "2026-08-11": {
         "status": "present",
-        "checkIn": "08:37",
-        "checkOut": "18:11",
-        "hours": 8.6
+        "checkIn": "08:39",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E08": {
@@ -3348,10 +3342,10 @@
         "hours": 9.1
       },
       "2026-08-11": {
-        "status": "present",
-        "checkIn": "09:01",
-        "checkOut": "18:35",
-        "hours": 8.6
+        "status": "leave",
+        "checkIn": null,
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E09": {
@@ -3734,10 +3728,10 @@
         "hours": 8.9
       },
       "2026-08-11": {
-        "status": "late",
-        "checkIn": "10:47",
-        "checkOut": "18:05",
-        "hours": 6.3
+        "status": "present",
+        "checkIn": "08:58",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E10": {
@@ -4120,10 +4114,10 @@
         "hours": 0
       },
       "2026-08-11": {
-        "status": "present",
-        "checkIn": "08:44",
-        "checkOut": "18:56",
-        "hours": 9.2
+        "status": "late",
+        "checkIn": "09:55",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E11": {
@@ -4507,9 +4501,9 @@
       },
       "2026-08-11": {
         "status": "present",
-        "checkIn": "09:04",
-        "checkOut": "18:24",
-        "hours": 8.3
+        "checkIn": "08:33",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E12": {
@@ -4892,10 +4886,10 @@
         "hours": 0
       },
       "2026-08-11": {
-        "status": "present",
-        "checkIn": "08:40",
-        "checkOut": "18:39",
-        "hours": 9
+        "status": "remote",
+        "checkIn": "09:11",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E13": {
@@ -5278,8 +5272,8 @@
         "hours": 7.7
       },
       "2026-08-11": {
-        "status": "absent",
-        "checkIn": null,
+        "status": "present",
+        "checkIn": "09:06",
         "checkOut": null,
         "hours": 0
       }
@@ -5664,7 +5658,7 @@
         "hours": 8.1
       },
       "2026-08-11": {
-        "status": "leave",
+        "status": "absent",
         "checkIn": null,
         "checkOut": null,
         "hours": 0
@@ -6051,9 +6045,9 @@
       },
       "2026-08-11": {
         "status": "present",
-        "checkIn": "09:02",
-        "checkOut": "17:49",
-        "hours": 7.8
+        "checkIn": "08:53",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E16": {
@@ -6436,10 +6430,10 @@
         "hours": 0
       },
       "2026-08-11": {
-        "status": "present",
-        "checkIn": "08:38",
-        "checkOut": "17:24",
-        "hours": 7.8
+        "status": "late",
+        "checkIn": "09:25",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E17": {
@@ -6822,10 +6816,10 @@
         "hours": 0
       },
       "2026-08-11": {
-        "status": "present",
-        "checkIn": "08:51",
-        "checkOut": "18:33",
-        "hours": 8.7
+        "status": "remote",
+        "checkIn": "08:48",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E18": {
@@ -7209,9 +7203,9 @@
       },
       "2026-08-11": {
         "status": "present",
-        "checkIn": "09:02",
-        "checkOut": "17:47",
-        "hours": 7.8
+        "checkIn": "08:37",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E19": {
@@ -7594,10 +7588,10 @@
         "hours": 0
       },
       "2026-08-11": {
-        "status": "present",
-        "checkIn": "08:38",
-        "checkOut": "17:32",
-        "hours": 7.9
+        "status": "leave",
+        "checkIn": null,
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E20": {
@@ -7981,9 +7975,9 @@
       },
       "2026-08-11": {
         "status": "present",
-        "checkIn": "09:04",
-        "checkOut": "17:48",
-        "hours": 7.7
+        "checkIn": "09:09",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E21": {
@@ -8367,9 +8361,9 @@
       },
       "2026-08-11": {
         "status": "present",
-        "checkIn": "08:49",
-        "checkOut": "17:46",
-        "hours": 7.9
+        "checkIn": "08:57",
+        "checkOut": null,
+        "hours": 0
       }
     },
     "E22": {
@@ -8750,12 +8744,6 @@
         "checkIn": "09:07",
         "checkOut": "17:41",
         "hours": 7.6
-      },
-      "2026-08-11": {
-        "status": "late",
-        "checkIn": "10:37",
-        "checkOut": "18:27",
-        "hours": 6.8
       }
     }
   },
@@ -8774,5 +8762,5 @@
       "empId": "E01"
     }
   },
-  "created": 1786446282964
+  "created": 1786455239776
 }

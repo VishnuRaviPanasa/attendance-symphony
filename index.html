@@ -1007,7 +1007,7 @@ async function renderApiSummary(host){
       <span class="sub">GET /api/attendance/summary · ${esc2(d.date||"")}</span>
     </div>
     <div class="api-kpis">
-      ${rate!=null?`<div class="api-kpi"><div class="v tnum">${rate}%</div><div class="k">attendance rate</div></div>`:""}
+      ${rate!=null?`<div class="api-kpi"><div class="v tnum">${rate}%</div><div class="k">attendance rate<br><span style="color:var(--muted-2);font-weight:500">present + late + remote</span></div></div>`:""}
       <div class="api-kpi"><div class="v tnum">${d.headcount??"—"}</div><div class="k">headcount</div></div>
     </div>
     <div class="api-chips">
