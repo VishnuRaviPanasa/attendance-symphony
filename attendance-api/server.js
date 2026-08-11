@@ -81,6 +81,19 @@ async function loadRoutes() {
 // Introspection — used by the Symphony console to show what the agents actually shipped.
 app.get("/api/_routes", (_req, res) => res.json({ mounted, loadErrors }));
 
+/* ---------- serve the attendance app itself ----------
+ * The app is a single self-contained file that also works opened straight from disk. Serving it
+ * here gives it a real URL for demos (easier to project and refresh than file://) and puts it on
+ * the same origin as this API, so it reaches the agent-built endpoints without relying on CORS.
+ * `no-store` because agents rewrite this file mid-demo and a cached copy would hide their work.
+ */
+const APP_HTML = path.join(__dirname, "..", "index.html");
+app.get(["/", "/app"], (_req, res) => {
+  if (!fs.existsSync(APP_HTML)) return res.status(404).send("index.html not found next to attendance-api/");
+  res.setHeader("Cache-Control", "no-store, must-revalidate");
+  res.sendFile(APP_HTML);
+});
+
 /* ---------- watch routes/ so new agent output goes live immediately ---------- */
 let debounce = null;
 function scheduleReload(why) {

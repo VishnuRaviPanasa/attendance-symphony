@@ -22,8 +22,9 @@ Jira (assignee = you) ─┴─►  watcher  ─►  ORCHESTRATOR  ─►  N × 
 ## Run it
 
 ```bash
-cd jira-symphony && npm start          # console  → http://localhost:4300
-cd attendance-api && npm start         # work API → http://localhost:4400
+cd attendance-api && npm start   # attendance app → http://localhost:4400/app
+                                 # agent-built API → http://localhost:4400/api/...
+cd jira-symphony  && npm start   # Symphony console → http://localhost:4300
 ```
 
 Then open <http://localhost:4300>, click **Create tickets**, and do nothing else.

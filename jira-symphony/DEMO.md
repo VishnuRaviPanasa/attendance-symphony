@@ -25,7 +25,7 @@ Check before you present:
 - [ ] Browser zoom ~110 %, console in fullscreen (⛶ top right)
 - [ ] A terminal open on `attendance-symphony/` for the closing proof
 - [ ] Network is up (agents need the API)
-- [ ] **`index.html` open in a second tab, signed in as HR Admin, scrolled to the bottom** —
+- [ ] **<http://localhost:4400/app> open in a second tab, signed in as HR Admin, scrolled to the bottom** —
       it must read *"No agent-built features yet."* If it does not, you have not reset.
 
 ### Timing — read this before you plan the meeting
@@ -61,7 +61,7 @@ shorter, use two (`{"ids":["101","103"]}`) or set `AGENT_EFFORT=low` in `.env`.
 ## The script (~5 minutes of talking + 2–7 minutes of agent time)
 
 ### 1 · The application (0:00) — **establish the "before"**
-Open `index.html` and sign in as HR Admin. Show the dashboard, then **scroll to the bottom**:
+Open <http://localhost:4400/app> and sign in as HR Admin. Show the dashboard, then **scroll to the bottom**:
 
 ```
 SHIPPED BY SYMPHONY

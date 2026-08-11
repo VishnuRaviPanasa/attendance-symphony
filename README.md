@@ -12,9 +12,17 @@ one of them is real.**
 ## ▶ For the manager demo, use `jira-symphony/`
 
 ```bash
-cd attendance-api && npm start      # the API the agents build → http://localhost:4400
-cd jira-symphony  && npm start      # the console             → http://localhost:4300
+cd attendance-api && npm start      # the app + the API the agents build
+cd jira-symphony  && npm start      # the Symphony console
 ```
+
+| | URL |
+|---|---|
+| Attendance app | <http://localhost:4400/app> |
+| Symphony console | <http://localhost:4300> |
+| Agent-built API | <http://localhost:4400/api/_routes> |
+
+(The app also still works opened straight from disk as `index.html`, fully offline.)
 
 Open <http://localhost:4300>, click **Create tickets**, and then do nothing. Symphony discovers
 the tickets from disk, assigns them to agents, and runs real `claude` processes in parallel.
