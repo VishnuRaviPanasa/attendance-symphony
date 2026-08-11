@@ -30,15 +30,16 @@ Check before you present:
 
 ### Timing — read this before you plan the meeting
 
-Runs vary a lot, because the agents genuinely iterate. Measured across four real runs:
+Runs vary a lot, because the agents genuinely iterate. Measured across five real runs:
 
 | | fastest | slowest |
 |---|---|---|
-| Wall clock, 3 tickets | **2m 10s** | **7m 0s** |
+| **"Change UI theme to black" (1 ticket)** | **2m 15s** | — |
+| Wall clock, 3 API tickets | **2m 10s** | **7m 0s** |
 | ATT-101 (summary) | 69 s | 77 s |
 | ATT-102 (monthly) | 86 s | 313 s |
 | ATT-103 (validation) | 79 s | 410 s |
-| Cost | $0.72 | $1.45 |
+| Cost | $0.50 (UI) / $0.72 (×3) | $1.45 |
 
 **Budget 7 minutes for the agent phase and plan to talk over it.** The variance comes from
 agents writing their own tests and then iterating when a test fails — which is real work, and
@@ -49,8 +50,9 @@ Two things make the wait comfortable:
   at while the other two are still running.
 - The live activity stream always has something moving. Narrate it.
 
-If you need it shorter, use two tickets instead of three (`{"ids":["101","103"]}`) or set
-`AGENT_EFFORT=low` in `.env`.
+**The single free-text UI ticket is the most demo-friendly option: ~2m15s, ~$0.50, and the
+payoff is a whole application that visibly changed colour.** If you need the 3-ticket run
+shorter, use two (`{"ids":["101","103"]}`) or set `AGENT_EFFORT=low` in `.env`.
 
 **Rehearse the whole thing twice** — once to check it works, once to practise the narration.
 
@@ -80,13 +82,34 @@ Switch to <http://localhost:4300>.
 
 Point out the flow diagram: task queue → orchestrator → nothing yet.
 
-### 3 · Create the tickets (1:15)
-Click **+ Create tickets**.
-> "I'm creating three tickets: an attendance summary API, a monthly report, and a validation
-> endpoint. All I did was create them — they're just JSON files on disk."
+### 3 · Create a ticket **in your own words** (1:15)
+Click **New ticket**. Type, out loud as you do it:
 
-*(Optional, and it lands well: show `tickets/inbox/` in a file explorer beforehand and drop a
-ticket in by hand. It behaves identically — the button has no privileged path.)*
+```
+Change the UI theme to black
+```
+
+> "I'm not picking an agent. I'm not saying which files to touch. I'm describing what I want,
+> the way I'd write it in Jira."
+
+Press **Create ticket**. The dialog reports back what Symphony decided:
+
+```
+Routed to UI Agent — will write index.html.
+Ticket ATT-201 written to tickets/inbox; the watcher picks it up on its own.
+```
+
+> "Symphony read that sentence, decided this is UI work, chose the UI agent, and worked out that
+> the only file it needs to write is index.html. That's a real decision about this request —
+> there's no list of pre-canned tickets behind it."
+
+*(The event stream shows the same thing: `New request received — triaging: "Change the UI theme
+to black"` → `Routed to UI Agent (decided by Symphony)`.)*
+
+**Alternative, if you prefer parallel work as the headline:** click **Demo tickets ×3** instead
+for three independent API tickets, and follow steps 6–7 below. The free-text UI ticket is the
+better opener because the payoff is visual; the ×3 run is the better parallelism story. With
+time for both, do the UI ticket first.
 
 ### 4 · Take your hands off the keyboard (1:30)
 **Say this explicitly.**
@@ -131,7 +154,30 @@ If someone asks whether the bar is real, point at the `ⓘ` under it:
 Cards flip to **● COMPLETED**, 100 %, with completion time, files written, tests, and cost.
 > "Done. Files written, tests passed, results recorded."
 
-### 10 · **Back to the application — the payoff**
+### 10a · **The UI ticket payoff — the app itself changed**
+*(If you ran "Change the UI theme to black".)*
+
+Switch to the attendance app tab and **press F5**.
+
+**The entire application is black.** Sidebar, cards, charts, tables — all of it.
+
+> "Same file, same app. I typed one sentence. An agent found the four places colour is defined
+> in that file, rewrote all of them, and kept the contrast readable."
+
+Show the diff to make it concrete:
+```bash
+git diff --stat index.html          # ~140 lines changed, one file
+git diff index.html | head -40      # the CSS custom properties
+```
+> "One file, a hundred and forty lines, all of it colour tokens. Nothing else was touched."
+
+Toggle the theme button (top right) to show light/dark both still work:
+> "It changed all four theme blocks, not just the one you'd notice — so it still behaves
+> correctly on a machine set to light mode."
+
+### 10b · **The API payoff — new features in the app**
+*(If you ran the ×3 demo tickets.)*
+
 Switch to the attendance app tab and **press F5**. Scroll to the bottom.
 
 The section that said *"No agent-built features yet"* is now populated:
@@ -207,6 +253,8 @@ if you specifically want to show a FAILED card.
 | A route 404s | `curl localhost:4400/api/_routes` shows `loadErrors`. If it mentions a missing export from `lib/store.js`, restart `attendance-api`. |
 | Agents very slow / rate limited | Cards show a rate-limit warning. Drop **Max parallel** to 2. |
 | App still says "No agent-built features yet" after the run | Hard-refresh (Ctrl+F5). If it still shows nothing, check `curl localhost:4400/api/_routes` — if that lists the routes, it is a browser cache issue, not an agent issue. |
+| Triage routes to the wrong agent | Re-create the ticket and pick the agent explicitly in the **Agent** dropdown. Symphony's choice is a real decision, so it can be wrong — overriding it is one click. |
+| Theme change looks broken in light mode | The agent missed one of the four token blocks. Show it as a finding, then `curl -X POST .../api/demo/reset` and re-run — this is why the ticket asks for all four. |
 | App says "Attendance API not reachable" | `cd attendance-api && npm start`. The app keeps working offline regardless — only the Symphony section is affected. |
 | Everything is broken | Fall back to **replay** (below). |
 

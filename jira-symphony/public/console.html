@@ -50,6 +50,26 @@ body{font-family:var(--font);background:var(--bg-grad);color:var(--ink);min-heig
 .iconbtn{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;color:var(--ink-2);border:1px solid var(--border);background:var(--surface)}
 .iconbtn:hover{background:var(--surface-3);border-color:var(--border-2)} .iconbtn svg{width:19px;height:19px}
 
+/* new-ticket modal */
+.modal-back{position:fixed;inset:0;background:rgba(4,10,16,.62);backdrop-filter:blur(3px);z-index:80;display:none;align-items:flex-start;justify-content:center;padding:8vh 20px}
+.modal-back.on{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border-2);border-radius:var(--radius);box-shadow:var(--shadow);width:min(620px,100%);padding:20px 22px 18px}
+.modal .mh{display:flex;align-items:center;margin-bottom:14px}
+.modal .mh h3{margin:0;font-size:18px;font-weight:800;letter-spacing:-.01em;flex:1}
+.modal .fl{display:block;font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 0 7px}
+.modal textarea,.modal select{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:14px;color:var(--ink);resize:vertical;font-family:inherit}
+.modal textarea:focus,.modal select:focus{outline:none;border-color:var(--accent)}
+.modal textarea::placeholder{color:var(--muted-2)}
+.modal .ex{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:10px 0 16px;font-size:12px;color:var(--muted)}
+.modal .chip{font-size:11.5px;padding:5px 11px;border-radius:20px;background:var(--surface-3);border:1px solid var(--border);color:var(--ink-2)}
+.modal .chip:hover{border-color:var(--accent);color:var(--accent)}
+.modal .frow{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:14px}
+.modal .mnote{font-size:12px;color:var(--muted);line-height:1.5;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 13px;margin-bottom:16px}
+.modal .mnote.routing{border-color:color-mix(in srgb,var(--accent) 45%,var(--border));color:var(--ink-2)}
+.modal .mnote b{color:var(--accent)}
+.modal .mact{display:flex;gap:10px;justify-content:flex-end}
+@media (max-width:560px){.modal .frow{grid-template-columns:1fr}}
+
 /* replay banner */
 .replay{display:none;align-items:center;gap:12px;background:var(--warn);color:#2a1f05;border-radius:12px;padding:11px 18px;margin-bottom:14px;font-weight:800;font-size:14px}
 .replay.on{display:flex}
@@ -184,6 +204,45 @@ body{font-family:var(--font);background:var(--bg-grad);color:var(--ink);min-heig
     <button class="iconbtn" id="theme" title="Theme"><svg id="themeic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
   </div>
 
+  <!-- Free-text ticket: you describe the work, Symphony decides who does it -->
+  <div class="modal-back" id="modal-back">
+    <div class="modal">
+      <div class="mh">
+        <h3>New ticket</h3>
+        <button class="iconbtn" id="modal-x" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <label class="fl" for="tk-desc">Describe the work</label>
+      <textarea id="tk-desc" rows="4" placeholder="e.g. Change the UI theme to black&#10;e.g. Add an endpoint that returns attendance for one employee&#10;e.g. Show a leave-balance badge on the dashboard"></textarea>
+      <div class="ex">
+        Try:
+        <button class="chip" data-ex="Change the UI theme to black">Change the UI theme to black</button>
+        <button class="chip" data-ex="Add an endpoint that returns the attendance history for a single employee">Employee history API</button>
+        <button class="chip" data-ex="Make the sidebar navigation icons larger and easier to read">Bigger nav icons</button>
+      </div>
+      <div class="frow">
+        <div>
+          <label class="fl" for="tk-kind">Agent</label>
+          <select id="tk-kind">
+            <option value="">Let Symphony decide</option>
+            <option value="frontend">UI Agent — the app itself</option>
+            <option value="backend">Backend Agent — the API</option>
+            <option value="testing">Test Agent</option>
+            <option value="docs">Docs Agent</option>
+          </select>
+        </div>
+        <div>
+          <label class="fl" for="tk-prio">Priority</label>
+          <select id="tk-prio"><option value="1">High</option><option value="2" selected>Normal</option><option value="3">Low</option></select>
+        </div>
+      </div>
+      <div class="mnote" id="tk-note">Symphony reads the description, picks the specialist, and decides which files that agent may write. You are not assigning it.</div>
+      <div class="mact">
+        <button class="btn ghost" id="tk-cancel">Cancel</button>
+        <button class="btn" id="tk-submit">Create ticket</button>
+      </div>
+    </div>
+  </div>
+
   <div class="replay" id="replay">
     <span>⏺ REPLAY MODE</span>
     <span class="rl" id="replaylbl"></span>
@@ -204,7 +263,8 @@ body{font-family:var(--font);background:var(--bg-grad);color:var(--ink);min-heig
   </div>
 
   <div class="controls">
-    <button class="btn" id="create"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Create tickets</button>
+    <button class="btn" id="newticket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> New ticket</button>
+    <button class="btn ghost" id="create">Demo tickets ×3</button>
     <button class="btn ghost" id="toggle">Stop Symphony</button>
     <button class="btn danger" id="reset">Reset demo</button>
     <div class="slots">Max parallel <input type="range" min="1" max="6" value="3" id="slots"> <b class="tnum" id="slotsv">3</b></div>
@@ -254,6 +314,51 @@ async function post(url,body){
   catch(e){return {ok:false,message:e.message};}
 }
 $("#create").onclick=async(e)=>{e.target.disabled=true;await post("/api/demo/tickets",{count:3});setTimeout(()=>{e.target.disabled=false;},1500);};
+
+/* ---- new ticket ---- */
+const DEFAULT_NOTE="Symphony reads the description, picks the specialist, and decides which files that agent may write. You are not assigning it.";
+function openModal(){
+  $("#modal-back").classList.add("on");
+  $("#tk-note").className="mnote"; $("#tk-note").textContent=DEFAULT_NOTE;
+  $("#tk-submit").disabled=false; $("#tk-submit").textContent="Create ticket";
+  setTimeout(()=>$("#tk-desc").focus(),40);
+}
+function closeModal(){$("#modal-back").classList.remove("on");}
+$("#newticket").onclick=openModal;
+$("#modal-x").onclick=closeModal;
+$("#tk-cancel").onclick=closeModal;
+$("#modal-back").addEventListener("click",(e)=>{if(e.target.id==="modal-back")closeModal();});
+document.addEventListener("keydown",(e)=>{if(e.key==="Escape")closeModal();});
+document.querySelectorAll(".chip[data-ex]").forEach(b=>{
+  b.onclick=()=>{$("#tk-desc").value=b.dataset.ex;$("#tk-desc").focus();};
+});
+$("#tk-desc").addEventListener("keydown",(e)=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))submitTicket();});
+$("#tk-submit").onclick=submitTicket;
+
+async function submitTicket(){
+  const description=$("#tk-desc").value.trim();
+  if(!description){$("#tk-desc").focus();return;}
+  const kind=$("#tk-kind").value||undefined;
+  const btn=$("#tk-submit");
+  btn.disabled=true; btn.textContent="Triaging…";
+  $("#tk-note").className="mnote routing";
+  $("#tk-note").textContent="Symphony is reading the request and choosing an agent…";
+
+  const r=await post("/api/tickets",{description,kind,priority:+$("#tk-prio").value});
+  if(!r||!r.ok){
+    btn.disabled=false; btn.textContent="Create ticket";
+    $("#tk-note").className="mnote"; $("#tk-note").textContent="Could not create the ticket: "+((r&&r.message)||"unknown error");
+    return;
+  }
+  const t=r.ticket||{};
+  $("#tk-note").className="mnote routing";
+  $("#tk-note").innerHTML=`Routed to <b>${esc(ROLE_LABEL[t.kind]||t.kind)}</b> — will write <b>${esc((t.scope||[]).join(", "))}</b>.`
+    +`<br>Ticket <b>${esc(t.key||"")}</b> written to <code>tickets/inbox</code>; the watcher picks it up on its own.`;
+  btn.textContent="Created ✓";
+  $("#tk-desc").value="";
+  setTimeout(closeModal,2200);
+}
+const ROLE_LABEL={frontend:"UI Agent",backend:"Backend Agent",testing:"Test Agent",docs:"Docs Agent"};
 $("#reset").onclick=async(e)=>{if(!confirm("Reset the demo?\n\nThis clears the queue and reverts code the agents wrote."))return;e.target.disabled=true;await post("/api/demo/reset",{revertCode:true});e.target.disabled=false;};
 $("#toggle").onclick=async()=>{const running=LAST&&LAST.running;await post("/api/control",{action:running?"stop":"start"});};
 let slotsTouched=false;
@@ -446,7 +551,7 @@ function drawQueue(s){
           <span class="qt">${esc(t.title)}</span>
           <span class="qs ${t.state}">${esc(t.state)}</span>
         </div>
-        <div class="pipeline">${pipe}${t.agentId?`<span style="margin-left:auto;color:var(--muted)">${esc(t.agentId)}</span>`:""}${t.attempts>1?`<span style="color:var(--warn)">attempt ${t.attempts}</span>`:""}</div>
+        <div class="pipeline">${pipe}${t.waitingFor?`<span style="color:var(--warn)">waiting on ${esc(t.waitingFor)} · ${esc((t.exclusive||[]).join(", "))}</span>`:""}${t.agentId?`<span style="margin-left:auto;color:var(--muted)">${esc(t.agentId)}</span>`:""}${t.attempts>1?`<span style="color:var(--warn)">attempt ${t.attempts}</span>`:""}</div>
       </div>
     </div>`;
   }).join("");

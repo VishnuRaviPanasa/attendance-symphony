@@ -20,6 +20,7 @@ import { FileTicketSource } from "./lib/sources/file-tickets.js";
 import { JiraTicketSource } from "./lib/sources/jira-tickets.js";
 import { resolveCli } from "./lib/agent-runner.js";
 import { DEMO_TICKETS, FAILURE_TICKET } from "./demo/tickets.js";
+import { triage, heuristic, targetFor } from "./lib/triage.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -83,7 +84,17 @@ if (JiraTicketSource.isConfigured(cfg.jira)) {
 }
 
 // Move the ticket file to done/ when its task finishes, so disk and queue agree.
-orch.on("completed", ({ task }) => fileSource.complete(task.ticket, true));
+orch.on("completed", ({ task }) => {
+  fileSource.complete(task.ticket, true);
+  // A UI agent edits index.html; app.html is its generated twin and must not drift.
+  if (task.postSync) {
+    execFile(process.execPath, [path.join(REPO_ROOT, "scripts", "sync-app-html.js")], { cwd: REPO_ROOT }, (err, stdout) => {
+      orch.log(err ? "w" : "ok",
+        err ? `app.html sync failed — ${err.message.split("\n")[0]}`
+            : `app.html regenerated from index.html`);
+    });
+  }
+});
 orch.on("failed", ({ task }) => fileSource.complete(task.ticket, false));
 
 /* ─────────────── express ─────────────── */
@@ -181,10 +192,64 @@ app.post("/api/demo/tickets", (req, res) => {
   const chosen = Array.isArray(only) && only.length
     ? DEMO_TICKETS.filter((t) => only.map(String).includes(String(t.id)))
     : DEMO_TICKETS.slice(0, n);
-  const written = fileSource.seed(chosen);
+  const written = fileSource.seed(chosen.map((t) => ({ ...t, workspace: cfg.workspace })));
   orch.log("i", `${written.length} ticket file(s) written to tickets/inbox — waiting for the watcher to find them`);
   res.json({ ok: true, written });
 });
+
+/**
+ * Create a ticket from a free-text description.
+ *
+ * The operator types what they want ("Change the UI theme to black"); Symphony decides which
+ * specialist should do it and which files that specialist may write. As with the demo button,
+ * this only WRITES A TICKET FILE — the watcher discovers it independently, so nothing here
+ * assigns work.
+ */
+app.post("/api/tickets", async (req, res) => {
+  const description = String(req.body?.description || "").trim();
+  if (!description) return res.status(400).json({ ok: false, message: "description is required" });
+
+  const forced = req.body?.kind;                       // operator can override the routing
+  const priority = +(req.body?.priority ?? 1);
+
+  orch.log("i", `New request received — triaging: "${truncate(description, 70)}"`);
+  let t;
+  try {
+    t = forced ? { ...heuristic(description), kind: forced, via: "operator" } : await triage(description);
+  } catch (e) {
+    t = { ...heuristic(description), via: "keywords" };
+    orch.log("w", `triage failed (${e.message}) — routed by keyword`);
+  }
+
+  const target = targetFor(t.kind, t.slug, REPO_ROOT, cfg.workspace);
+  const id = String(nextTicketId++);
+  const ticket = {
+    id,
+    key: `ATT-${id}`,
+    title: t.title,
+    kind: t.kind,
+    priority,
+    spec: description,
+    acceptance: t.acceptance,
+    scope: target.scope,
+    exclusive: target.exclusive,
+    workspace: target.workspace,
+    postSync: !!target.postSync,
+    verify: t.kind === "frontend" ? null : "npm test",
+    triage: { via: t.via, reason: t.reason },
+  };
+
+  orch.log("ok",
+    `Routed to ${ROLE_LABEL[t.kind] || t.kind} (${t.via === "llm" ? "decided by Symphony" : t.via})` +
+    ` · will write ${target.scope.join(", ")}`);
+
+  const written = fileSource.seed([ticket]);
+  res.json({ ok: true, ticket: { ...ticket, spec: undefined }, written });
+});
+
+const ROLE_LABEL = { frontend: "UI Agent", backend: "Backend Agent", testing: "Test Agent", docs: "Docs Agent" };
+let nextTicketId = 201;
+function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
 /** Full demo reset: stop agents, clear state, clear tickets, revert agent-written code. */
 app.post("/api/demo/reset", async (req, res) => {
@@ -250,7 +315,7 @@ app.post("/api/replay/stop", (_req, res) => {
 /** Revert agent-written code with git, so a rehearsal can be repeated cleanly. */
 function revertWorkspace() {
   return new Promise((resolve) => {
-    execFile("git", ["-C", REPO_ROOT, "checkout", "--", "attendance-api"], (err1) => {
+    execFile("git", ["-C", REPO_ROOT, "checkout", "--", "attendance-api", "index.html", "app.html"], (err1) => {
       // -x is required: agent output is gitignored, and plain `git clean -fd` skips ignored
       // files, so a reset silently left the previous run's work in place. Tracked files
       // (routes/health.js, tests/store.test.js) are never touched by clean.

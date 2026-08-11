@@ -112,6 +112,11 @@ export class Orchestrator extends EventEmitter {
       roleLabel: role.label,
       priority: ticket.priority ?? 2,
       scope: ticket.scope || [],
+      // Files this task must hold alone. index.html is shared by every UI ticket, so two of
+      // them running at once would overwrite each other's edits.
+      exclusive: ticket.exclusive || [],
+      workspace: ticket.workspace || this.workspace,
+      postSync: !!ticket.postSync,
       ticket,
       state: "queued",
       agentId: null,
@@ -159,8 +164,31 @@ export class Orchestrator extends EventEmitter {
       }
       const agent = this.agents.find((a) => a.status === "idle");
       if (!agent) break;
+
+      // A task whose exclusive files are already held waits, even though a slot is free.
+      const blockedBy = this._heldBy(task);
+      if (blockedBy) {
+        if (!task.waitingFor) {
+          task.waitingFor = blockedBy.key;
+          this.log("i", `${task.key} waits for ${blockedBy.key} — both need ${task.exclusive.join(", ")}`);
+          this.emit("change");
+        }
+        continue;                    // try the next ticket rather than stalling the queue
+      }
+      task.waitingFor = null;
       this._dispatch(task, agent);
     }
+  }
+
+  /** The running task holding any file this one needs exclusively, if any. */
+  _heldBy(task) {
+    if (!task.exclusive?.length) return null;
+    const want = new Set(task.exclusive.map((f) => f.toLowerCase()));
+    return this.tasks.find((t) =>
+      t !== task &&
+      (t.state === "assigned" || t.state === "working") &&
+      (t.exclusive || []).some((f) => want.has(String(f).toLowerCase()))
+    ) || null;
   }
 
   _dispatch(task, agent) {
@@ -185,7 +213,7 @@ export class Orchestrator extends EventEmitter {
     const handle = this._runner({
       agentId: agent.id,
       ticket: task.ticket,
-      workspace: this.workspace,
+      workspace: task.workspace || this.workspace,
       runDir: this.runDir,
       hookScript: this.hookScript,
       onEvent: (ev) => this._onAgentEvent(task, agent, ev),
@@ -382,6 +410,7 @@ export class Orchestrator extends EventEmitter {
         id: t.id, key: t.key, title: t.title, kind: t.kind, roleLabel: t.roleLabel,
         priority: t.priority, state: t.state, agentId: t.agentId, attempts: t.attempts,
         scope: t.scope, error: t.error, result: t.result,
+        exclusive: t.exclusive, waitingFor: t.waitingFor || null, workspace: t.workspace,
         queuedAt: t.queuedAt, startedAt: t.startedAt, finishedAt: t.finishedAt,
       })),
       events: this.events.slice(-120),

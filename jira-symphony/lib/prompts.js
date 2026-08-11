@@ -34,10 +34,12 @@ export const ROLES = {
   },
   frontend: {
     id: "frontend",
-    label: "Frontend Agent",
+    label: "UI Agent",
     color: "#34d399",
     system:
-      "You are a frontend engineer. You write small, dependency-free browser modules.",
+      "You are a frontend engineer working on a single self-contained HTML application. " +
+      "You make precise, surgical edits to existing markup, CSS and vanilla JS. You never " +
+      "introduce a build step, a framework, or an external request.",
   },
 };
 
@@ -69,6 +71,8 @@ export function systemPromptFor(ticket) {
 
 /** The user prompt: the ticket itself. */
 export function buildPrompt(ticket, { workspace }) {
+  if (roleFor(ticket).id === "frontend") return buildUiPrompt(ticket, { workspace });
+
   const scope = ticket.scope || [];
   const acceptance = Array.isArray(ticket.acceptance) ? ticket.acceptance : ticket.acceptance ? [ticket.acceptance] : [];
 
@@ -109,6 +113,66 @@ export function buildPrompt(ticket, { workspace }) {
       ? `Your TodoWrite list must include one step per file above (${scope.length} files) plus a verification step. ` +
         "Do not report success until every box is ticked."
       : "Start by writing your TodoWrite list.",
+  ].filter((l) => l !== null).join("\n");
+}
+
+/**
+ * Prompt for work on the attendance app itself.
+ *
+ * index.html is 1500 lines and ~100 KB with everything inline, so the agent is told exactly
+ * where things live rather than left to discover it — that is the difference between a 40 s
+ * edit and a 5 minute exploration, and a demo has to be predictable.
+ */
+function buildUiPrompt(ticket, { workspace }) {
+  const acceptance = Array.isArray(ticket.acceptance) ? ticket.acceptance : ticket.acceptance ? [ticket.acceptance] : [];
+  return [
+    `# ${ticket.key || ticket.id}: ${ticket.title}`,
+    "",
+    ticket.spec ? `The request, in the requester's own words:\n\n> ${ticket.spec}` : "",
+    "",
+    "## The application",
+    `Working directory: ${workspace}`,
+    "`index.html` is the whole attendance app: one file, no build step, no dependencies, no",
+    "network requests. Structure (line numbers are approximate — confirm with Grep):",
+    "",
+    "- `<style>` around lines 10-500. **All colour lives in CSS custom properties**, defined four times:",
+    "    1. `:root { ... }`                              — the light palette (the default)",
+    "    2. `@media (prefers-color-scheme: dark) :root`  — follows the OS",
+    "    3. `:root[data-theme=\"light\"]`                  — explicit light override",
+    "    4. `:root[data-theme=\"dark\"]`                   — explicit dark override",
+    "  The tokens are `--bg --bg-grad --surface --surface-2 --surface-3 --border --border-2`,",
+    "  `--ink --ink-2 --muted --muted-2`, `--accent --accent-2 --accent-ink --accent-soft --accent-glow`,",
+    "  and the status pairs `--present --late --absent --leave --remote` (each with a `-soft` twin).",
+    "- Static body markup around lines 500-560 (login screen, app shell, sidebar, topbar).",
+    "- One IIFE `(function(){ \"use strict\"; ... })();` holding every bit of JS.",
+    "- `applyTheme(t)` / `initTheme()` near the end set `data-theme` and persist `attendpro.theme`.",
+    "",
+    "## How to make this change well",
+    "- **Prefer editing the CSS custom properties over touching individual rules.** Almost any",
+    "  look-and-feel change is a palette change; components read the tokens.",
+    "- If the task is about a theme, change **all four** blocks listed above so the result holds",
+    "  whatever the OS setting and whatever the toggle says. A change to only one block will look",
+    "  broken on someone else's machine.",
+    "- Keep contrast readable — text must stay legible against its background.",
+    "- Do not remove features, rename ids/classes other code depends on, or reformat the file.",
+    "- Never add a `<script src>`, `<link rel=stylesheet>`, webfont or any other external request:",
+    "  the file must keep working offline from disk.",
+    "",
+    "## Files you own",
+    "- `index.html`  (edit it in place)",
+    "",
+    "`app.html` is a generated copy — do NOT edit it, it is regenerated automatically.",
+    "Do not touch any other file.",
+    "",
+    acceptance.length ? "## Acceptance criteria\n" + acceptance.map((a) => `- ${a}`).join("\n") : "",
+    "",
+    "## Definition of done",
+    "- [ ] `index.html` contains the change.",
+    "- [ ] The change is visible immediately on opening the app — no console errors.",
+    "- [ ] `node -e \"const s=require('fs').readFileSync('index.html','utf8'); if(!/<\\/html>/.test(s)) throw new Error('truncated')\"` succeeds.",
+    "- [ ] Nothing unrelated was altered.",
+    "",
+    "Start by writing a TodoWrite list, then Grep for the token block you need before editing.",
   ].filter((l) => l !== null).join("\n");
 }
 

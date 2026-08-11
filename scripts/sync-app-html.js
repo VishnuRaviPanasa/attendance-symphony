@@ -23,7 +23,11 @@ function bodyOnly(html) {
   const start = open.index + open[0].length;
   const close = html.toLowerCase().lastIndexOf("</body>");
   if (close === -1) throw new Error("no </body> tag found");
-  return html.slice(start, close).replace(/\s*$/, "") + "\n";
+  // Match the source's line ending. Git checks these files out as CRLF on Windows, so a
+  // hard-coded "\n" here made the generated file differ from the committed one by a single
+  // trailing byte and reported permanently "stale".
+  const eol = /\r\n/.test(html) ? "\r\n" : "\n";
+  return html.slice(start, close).replace(/\s*$/, "") + eol;
 }
 
 const check = process.argv.includes("--check");
