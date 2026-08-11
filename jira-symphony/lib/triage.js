@@ -19,6 +19,7 @@ export function targetFor(kind, slug, repoRoot, apiDir) {
     case "frontend":
       return {
         workspace: repoRoot,
+        workspaceRel: "",
         scope: ["index.html"],
         // index.html is one file shared by every UI ticket: two agents editing it at once would
         // clobber each other. Declaring it exclusive makes the orchestrator serialise them.
@@ -26,12 +27,12 @@ export function targetFor(kind, slug, repoRoot, apiDir) {
         postSync: true,
       };
     case "testing":
-      return { workspace: apiDir, scope: [`tests/${slug}.test.js`], exclusive: [] };
+      return { workspace: apiDir, workspaceRel: "attendance-api", scope: [`tests/${slug}.test.js`], exclusive: [] };
     case "docs":
-      return { workspace: apiDir, scope: [`docs/${slug}.md`], exclusive: [] };
+      return { workspace: apiDir, workspaceRel: "attendance-api", scope: [`docs/${slug}.md`], exclusive: [] };
     case "backend":
     default:
-      return { workspace: apiDir, scope: [`routes/${slug}.js`, `tests/${slug}.test.js`], exclusive: [] };
+      return { workspace: apiDir, workspaceRel: "attendance-api", scope: [`routes/${slug}.js`, `tests/${slug}.test.js`], exclusive: [] };
   }
 }
 

@@ -14,6 +14,7 @@ import fs from "node:fs";
 import { runAgent } from "./agent-runner.js";
 import { ProgressTracker } from "./progress.js";
 import { roleFor, ROLES } from "./prompts.js";
+import { createWorkspace, integrate } from "./workspace.js";
 
 const SLOT_COLORS = ["#2dd4bf", "#60a5fa", "#c084fc", "#fbbf24", "#34d399", "#f472b6", "#38bdf8", "#a78bfa"];
 const MAX_EVENTS = 400;
@@ -31,10 +32,15 @@ export class Orchestrator extends EventEmitter {
     // processes. Production always uses the real runner; there is no simulation mode.
     runner = runAgent,
     slotHoldMs = 4000,
+    // Isolated worktree per ticket. Off in tests, where the stub runner never touches disk.
+    isolate = false,
+    repoRoot = null,
   } = {}) {
     super();
     this._runner = runner;
     this._slotHoldMs = slotHoldMs;
+    this.isolate = isolate;
+    this.repoRoot = repoRoot;
     this.workspace = workspace;
     this.runsRoot = runsRoot;
     this.hookScript = hookScript;
@@ -116,6 +122,7 @@ export class Orchestrator extends EventEmitter {
       // them running at once would overwrite each other's edits.
       exclusive: ticket.exclusive || [],
       workspace: ticket.workspace || this.workspace,
+      workspaceRel: ticket.workspaceRel || "",
       postSync: !!ticket.postSync,
       ticket,
       state: "queued",
@@ -176,12 +183,20 @@ export class Orchestrator extends EventEmitter {
         continue;                    // try the next ticket rather than stalling the queue
       }
       task.waitingFor = null;
-      this._dispatch(task, agent);
+      // agent slot is claimed synchronously inside _dispatch before its first await
+      this._dispatch(task, agent).catch((e) => this.log("err", `dispatch failed: ${e.message}`));
     }
   }
 
-  /** The running task holding any file this one needs exclusively, if any. */
+  /**
+   * The running task holding any file this one needs exclusively, if any.
+   *
+   * Only relevant WITHOUT sandboxes. With a worktree per ticket two agents can edit the same
+   * file concurrently and have both edits three-way merged on the way back in, so the lock
+   * would serialise work for no reason.
+   */
   _heldBy(task) {
+    if (this.isolate) return null;
     if (!task.exclusive?.length) return null;
     const want = new Set(task.exclusive.map((f) => f.toLowerCase()));
     return this.tasks.find((t) =>
@@ -191,7 +206,7 @@ export class Orchestrator extends EventEmitter {
     ) || null;
   }
 
-  _dispatch(task, agent) {
+  async _dispatch(task, agent) {
     const role = ROLES[task.kind] || roleFor(task.ticket);
 
     task.state = "assigned";
@@ -208,12 +223,30 @@ export class Orchestrator extends EventEmitter {
 
     this.log("ok", `${task.key} assigned to ${agent.id} as ${role.label} · slot ${this.activeCount()}/${this.maxConc}`, agent.id);
     this._appendManifest(task, agent);
+    this.emit("started", { task, agent });
     this.emit("change");
+
+    // Isolated workspace per ticket. The agent works on its own checkout, so it cannot see or
+    // overwrite another agent's edits even when both target the same file.
+    let workspace = task.workspace || this.workspace;
+    if (this.isolate && this.repoRoot) {
+      const ws = await createWorkspace(this.repoRoot, task.key, (k, m) => this.log(k, m, agent.id));
+      if (ws) {
+        task.worktree = ws;
+        task.baseRef = ws.baseRef;
+        // Re-root the ticket's workspace inside the sandbox.
+        workspace = task.workspaceRel ? path.join(ws.dir, task.workspaceRel) : ws.dir;
+        this.log("i", `${agent.id} sandbox ready · ${path.join(".worktrees", task.key)}`, agent.id);
+      } else {
+        this.log("w", `${task.key}: no sandbox — falling back to the shared working tree`, agent.id);
+      }
+    }
+    task.effectiveWorkspace = workspace;
 
     const handle = this._runner({
       agentId: agent.id,
       ticket: task.ticket,
-      workspace: task.workspace || this.workspace,
+      workspace,
       runDir: this.runDir,
       hookScript: this.hookScript,
       onEvent: (ev) => this._onAgentEvent(task, agent, ev),
@@ -221,7 +254,7 @@ export class Orchestrator extends EventEmitter {
     });
     agent.handle = handle;
 
-    handle.promise.then((res) => this._onAgentFinished(task, agent, res));
+    handle.promise.then((res) => this._onAgentFinished(task, agent, res).catch((e) => this.log("err", `finish handler failed: ${e.message}`)));
   }
 
   _onAgentEvent(task, agent, ev) {
@@ -250,11 +283,35 @@ export class Orchestrator extends EventEmitter {
     if (t.percent !== before) this.emit("change");
   }
 
-  _onAgentFinished(task, agent, res) {
+  async _onAgentFinished(task, agent, res) {
     const t = agent.tracker;
     agent.finishedAt = Date.now();
     agent.handle = null;
     this.totalCostUsd += res.resultEvent?.costUsd || 0;
+
+    // Bring the sandbox's work into the real tree before declaring success. A merge conflict
+    // means another agent already changed the same lines — that is a genuine failure of this
+    // ticket, not something to paper over by overwriting their work.
+    if (res.ok && task.worktree) {
+      try {
+        const r = await integrate(this.repoRoot, task.worktree.dir, task, (k, m) => this.log(k, m, agent.id));
+        task.integration = r;
+        if (r.conflicts.length) {
+          res = { ...res, ok: false, error: `merge conflict in ${r.conflicts.join(", ")}` };
+        } else {
+          const parts = [];
+          if (r.merged.length) parts.push(`merged ${r.merged.join(", ")}`);
+          if (r.copied.length) parts.push(`applied ${r.copied.join(", ")}`);
+          if (parts.length) this.log("ok", `${task.key}: ${parts.join(" · ")}`, agent.id);
+        }
+      } catch (e) {
+        res = { ...res, ok: false, error: `integration failed: ${e.message}` };
+      }
+    }
+    if (task.worktree) {
+      try { await task.worktree.cleanup(); } catch { /* pruned later */ }
+      task.worktree = null;
+    }
 
     if (res.ok) {
       task.state = "completed";
@@ -409,7 +466,7 @@ export class Orchestrator extends EventEmitter {
       tasks: this.tasks.map((t) => ({
         id: t.id, key: t.key, title: t.title, kind: t.kind, roleLabel: t.roleLabel,
         priority: t.priority, state: t.state, agentId: t.agentId, attempts: t.attempts,
-        scope: t.scope, error: t.error, result: t.result,
+        scope: t.scope, error: t.error, result: t.result, integration: t.integration || null,
         exclusive: t.exclusive, waitingFor: t.waitingFor || null, workspace: t.workspace,
         queuedAt: t.queuedAt, startedAt: t.startedAt, finishedAt: t.finishedAt,
       })),

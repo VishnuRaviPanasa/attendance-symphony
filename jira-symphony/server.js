@@ -21,6 +21,7 @@ import { JiraTicketSource } from "./lib/sources/jira-tickets.js";
 import { resolveCli } from "./lib/agent-runner.js";
 import { DEMO_TICKETS, FAILURE_TICKET } from "./demo/tickets.js";
 import { triage, heuristic, targetFor } from "./lib/triage.js";
+import { pruneAll } from "./lib/workspace.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -55,6 +56,9 @@ const orch = new Orchestrator({
   workspace: cfg.workspace,
   runsRoot: RUNS_ROOT,
   hookScript: HOOK,
+  // One git worktree per ticket — agents cannot see or overwrite each other's edits.
+  isolate: String(process.env.ISOLATE_WORKSPACES || "true") === "true",
+  repoRoot: REPO_ROOT,
 });
 
 const cliPath = resolveCli();
@@ -83,8 +87,48 @@ if (JiraTicketSource.isConfigured(cfg.jira)) {
   orch.log("i", "Jira not configured — file tickets only (set JIRA_* in .env to enable)");
 }
 
+/* ─────────────── write-back: the tracker is the control plane, both ways ───────────────
+ * Symphony treats the issue tracker as the control plane, which means reporting back to it —
+ * not just reading from it. Tickets that came from Jira get a comment and a status transition
+ * at the real moments. File tickets have no tracker to update and are skipped.
+ */
+const writeBack = String(process.env.WRITE_BACK || "true") === "true";
+const STATUS_IN_PROGRESS = process.env.STATUS_IN_PROGRESS || "In Progress";
+const STATUS_DONE = process.env.STATUS_DONE || "Done";
+
+async function jiraWriteBack(task, phase, agent, extra = {}) {
+  if (!writeBack || !jiraSource?.connected || task.ticket?.source !== "jira") return;
+  const key = task.key;
+  try {
+    if (phase === "started") {
+      await jiraSource.client.comment(key, `🤖 Symphony dispatched ${agent.id} (${task.roleLabel}) to this ticket. Working in an isolated workspace.`);
+      const moved = await jiraSource.client.transitionTo(key, STATUS_IN_PROGRESS);
+      orch.log(moved ? "ok" : "w", moved ? `${key} → ${STATUS_IN_PROGRESS} in Jira` : `${key}: commented (no "${STATUS_IN_PROGRESS}" transition available)`, agent.id);
+    } else if (phase === "completed") {
+      const files = (extra.files || []).join(", ") || "no files";
+      await jiraSource.client.comment(key,
+        `✅ ${agent.id} finished. Files: ${files}. ` +
+        `Tests: ${extra.testsPassed || 0} passed. Cost: $${(extra.costUsd || 0).toFixed(3)}.`);
+      const moved = await jiraSource.client.transitionTo(key, STATUS_DONE);
+      orch.log(moved ? "ok" : "w", moved ? `${key} → ${STATUS_DONE} in Jira` : `${key}: commented (no "${STATUS_DONE}" transition available)`, agent.id);
+    } else if (phase === "failed") {
+      await jiraSource.client.comment(key, `❌ ${agent.id} failed: ${extra.error || "unknown error"}. The ticket has been left for a human.`);
+      orch.log("w", `${key}: failure reported to Jira`, agent.id);
+    }
+  } catch (e) {
+    orch.log("w", `${key}: Jira write-back failed — ${e.message}`);
+  }
+}
+
+orch.on("started", ({ task, agent }) => { jiraWriteBack(task, "started", agent); });
+
 // Move the ticket file to done/ when its task finishes, so disk and queue agree.
-orch.on("completed", ({ task }) => {
+orch.on("completed", ({ task, agent }) => {
+  jiraWriteBack(task, "completed", agent, {
+    files: task.result?.files || [],
+    testsPassed: (task.result?.tests || []).filter((t) => t.ok).length,
+    costUsd: task.result?.costUsd || 0,
+  });
   fileSource.complete(task.ticket, true);
   // A UI agent edits index.html; app.html is its generated twin and must not drift.
   if (task.postSync) {
@@ -95,7 +139,10 @@ orch.on("completed", ({ task }) => {
     });
   }
 });
-orch.on("failed", ({ task }) => fileSource.complete(task.ticket, false));
+orch.on("failed", ({ task, agent }) => {
+  jiraWriteBack(task, "failed", agent, { error: task.error });
+  fileSource.complete(task.ticket, false);
+});
 
 /* ─────────────── express ─────────────── */
 
@@ -183,7 +230,7 @@ app.post("/api/demo/tickets", (req, res) => {
   // `failure: true` seeds the ticket engineered to be blocked by the scope hook, so the
   // FAILED → RETRYING → FAILED path can be demonstrated on demand.
   if (req.body?.failure) {
-    const written = fileSource.seed([FAILURE_TICKET]);
+    const written = fileSource.seed([{ ...FAILURE_TICKET, workspace: cfg.workspace, workspaceRel: "attendance-api" }]);
     orch.log("w", `failure-demo ticket ${FAILURE_TICKET.key} written to tickets/inbox`);
     return res.json({ ok: true, written });
   }
@@ -192,7 +239,7 @@ app.post("/api/demo/tickets", (req, res) => {
   const chosen = Array.isArray(only) && only.length
     ? DEMO_TICKETS.filter((t) => only.map(String).includes(String(t.id)))
     : DEMO_TICKETS.slice(0, n);
-  const written = fileSource.seed(chosen.map((t) => ({ ...t, workspace: cfg.workspace })));
+  const written = fileSource.seed(chosen.map((t) => ({ ...t, workspace: cfg.workspace, workspaceRel: "attendance-api" })));
   orch.log("i", `${written.length} ticket file(s) written to tickets/inbox — waiting for the watcher to find them`);
   res.json({ ok: true, written });
 });
@@ -234,6 +281,7 @@ app.post("/api/tickets", async (req, res) => {
     scope: target.scope,
     exclusive: target.exclusive,
     workspace: target.workspace,
+    workspaceRel: target.workspaceRel,
     postSync: !!target.postSync,
     verify: t.kind === "frontend" ? null : "npm test",
     triage: { via: t.via, reason: t.reason },
@@ -255,6 +303,7 @@ function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 app.post("/api/demo/reset", async (req, res) => {
   orch.reset();
   fileSource.clear();
+  await pruneAll(REPO_ROOT);
   const revert = req.body?.revertCode !== false;
   let reverted = null;
   if (revert) {

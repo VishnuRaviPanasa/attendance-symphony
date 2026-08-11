@@ -36,6 +36,38 @@ See **[DEMO.md](DEMO.md)** for the 7-minute manager script and the operator runb
 
 ---
 
+## How this maps to Symphony
+
+Measured against the definition in [`spec-kit-vs-symphony.html`](../spec-kit-vs-symphony.html):
+*"treats an issue tracker as the control plane: watches for ready tickets, spins up an isolated
+workspace per ticket, dispatches a coding agent to each, runs tests, opens a Pull Request, and
+reports back."*
+
+| Symphony property | Here |
+|---|---|
+| Watches for ready tickets | ✅ file watcher + Jira poller |
+| **Isolated workspace per ticket** | ✅ a real `git worktree` per ticket (`lib/workspace.js`) |
+| Dispatches an agent to each | ✅ one real `claude` process per ticket |
+| Parallelism with backpressure | ✅ concurrency cap; queued tickets wait for a slot |
+| Runs tests | ✅ |
+| **Reports back to the tracker** | ✅ Jira comment + To Do → In Progress → Done (needs `JIRA_*` in `.env`) |
+| Claim states | ✅ queued → assigned → working → retry → released |
+| Proof of work | ⚠️ tokens, runtime, cost, files, tests — **no CI status** |
+| **Opens a Pull Request** | ❌ integrates straight into the working tree |
+| Execution phase names | ❌ replaced with stages derived from real events (see below) |
+
+**One deliberate departure worth naming.** The free-text ticket box is *task production*, which
+is Spec Kit's half of the pipeline — the same document says *"Spec Kit produces tasks; Symphony
+consumes them."* So this is **Spec-Kit-style intake feeding a Symphony-style orchestrator**.
+That composition is what the report's "Using them together" section recommends, but it is worth
+saying out loud rather than presenting free-text triage as a Symphony feature.
+
+The phase names also differ on purpose: Symphony's `PreparingWorkspace → BuildingPrompt → …`
+describe the *orchestrator's* steps, whereas the stages here are derived from what the agent is
+actually observed doing. Honesty about the agent was worth more than matching the vocabulary.
+
+---
+
 ## Why the parallelism is real
 
 Agents write into `attendance-api/`, whose `server.js` auto-discovers `routes/*.js` — drop a file
@@ -47,8 +79,18 @@ in and the endpoint goes live with no restart. Each ticket therefore **owns its 
 | ATT-102 monthly report | `routes/monthly.js`, `tests/monthly.test.js` |
 | ATT-103 validation | `routes/validation.js`, `tests/validation.test.js` |
 
-No two agents ever touch the same file, so they genuinely run at once rather than serialising.
-A `PreToolUse` hook (`hooks/scope-guard.mjs`) enforces this — see [Containment](#containment).
+Beyond disjoint files, **each ticket runs in its own `git worktree`**, so two agents can edit
+the *same* file at once — two UI tickets both changing `index.html`, for instance. On completion
+each agent's work is three-way merged back (`git merge-file`, base = the commit the worktree was
+cut from). Non-overlapping edits both survive; a genuine overlap fails that ticket with
+`merge conflict in <file>` rather than silently discarding the other agent's work.
+
+Verified: "Change the UI theme to black" and "Make the sidebar labels larger and bolder" ran
+concurrently against `index.html` and both landed — black palette *and* larger nav, no conflict
+markers.
+
+A `PreToolUse` hook (`hooks/scope-guard.mjs`) still bounds what each agent may write — see
+[Containment](#containment).
 
 **Measured:** 3 agents, 2-7 min wall clock, $0.72-1.45, 30-37 tests passing — 9 hand-written,
 the rest produced by the agents (the count varies because they choose their own coverage).
@@ -119,6 +161,8 @@ Verified: an agent told to modify `lib/store.js` was blocked and left the file u
 | `lib/orchestrator.js` | queue, routing, backpressure, retry |
 | `lib/jsonl.js` | chunk-boundary-safe JSONL splitter |
 | `lib/replay.js` | replays a recorded run through the same pipeline |
+| `lib/workspace.js` | worktree per ticket + three-way merge back |
+| `lib/triage.js` | free text → agent, scope, acceptance criteria |
 | `lib/sources/file-tickets.js` | `tickets/inbox` watcher (`fs.watch` + 1 s poll) |
 | `lib/sources/jira-tickets.js` | Jira poller, reuses `lib/jira.js` |
 | `hooks/scope-guard.mjs` | the containment boundary |
@@ -154,6 +198,10 @@ AGENT_MODEL=sonnet
 AGENT_EFFORT=medium
 MAX_BUDGET_USD=2             # per agent, per attempt
 AGENT_TIMEOUT_MS=720000
+ISOLATE_WORKSPACES=true      # git worktree per ticket
+WRITE_BACK=true              # comment + transition Jira tickets
+STATUS_IN_PROGRESS=In Progress
+STATUS_DONE=Done
 
 # Optional — enables the Jira ticket source
 JIRA_BASE_URL= / JIRA_EMAIL= / JIRA_API_TOKEN= / JIRA_JQL=
