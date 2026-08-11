@@ -40,19 +40,13 @@ ran, behind a permanent REPLAY banner.
 
 ## The attendance app itself
 
-## Two ways to open it
+Double-click **`index.html`**. Sign in and use the attendance system: dashboard,
+employee directory, check-in/check-out, reports and CSV export. It works fully
+offline in any browser, with light & dark themes (toggle top-right), and stores
+data in `localStorage`.
 
-**A) The full app** — double-click **`index.html`**. Sign in, use the attendance
-system, and open the *Symphony Build* tab inside it. Best for the complete story.
-
-**B) The standalone agents dashboard** — double-click **`symphony-dashboard.html`**.
-This opens **directly** to a full-screen "agents working in parallel" view — no
-login, dark by default, with a Fullscreen button. **Use this one to project for
-your manager** when you just want to show the parallel-agent build. It shows the
-whole agent fleet at once (6 building in parallel by default), live token rate,
-task board, and orchestrator log.
-
-Both work fully offline in any browser. Light & dark themes (toggle top-right).
+It also contains a *Symphony Build* tab — that tab is the **simulation**, not the
+real console. For real agent execution use `jira-symphony/` as described above.
 
 **Shareable links (for a remote manager):**
 - Full app: https://claude.ai/code/artifact/cf4b2b82-7deb-45c9-8f43-edf02fc12e3d
@@ -74,25 +68,21 @@ On the login screen, click a **demo account card** to auto-fill the credentials.
    "today by status" donut, and per-department attendance rates.
 3. **Attendance** — check someone in/out live; show the status updates instantly.
 4. **Employees / Reports** — add an employee, filter reports, click **Export CSV**.
-5. **Symphony Build (the highlight)** — this is the "agents working in parallel"
-   screen:
-   - Show the **task board** (Backlog → Claimed → Running → In Review → Done) and
-     the **agent lanes** — several agents each on a *different* task, at
-     *different* phases, streaming logs simultaneously.
-   - Type a feature (e.g. *"Overtime & payroll export"*) → **Dispatch to agents**.
-     Watch it split into tasks that get picked up by free agents in parallel.
-   - Drag the **Max parallel** slider down to 2 to show **backpressure** (extra
-     tasks wait in the queue); raise it to show more agents spin up.
-   - Watch PRs merge and "feature shipped" tick up in the header.
-6. Optionally sign out and sign in as the **Employee** to show the self-service
+5. Optionally sign out and sign in as the **Employee** to show the self-service
    check-in view.
+6. **For the agent story, switch to the real console** — see
+   [jira-symphony/DEMO.md](jira-symphony/DEMO.md). Do not use the simulated
+   Symphony Build tab for that part.
 
 ## Files
 
-- `index.html` — the full attendance app (login + dashboard + Symphony tab). **(self-contained)**
-- `symphony-dashboard.html` — **standalone "agents in parallel" dashboard** (no login). **(self-contained)**
+- `jira-symphony/` — **the real Symphony Operations Console** (spawns actual agents).
+- `attendance-api/` — the API the agents build; routes are auto-discovered from `routes/*.js`.
+- `tickets/inbox/` — drop a ticket JSON here and Symphony picks it up on its own.
+- `index.html` — the full attendance app (login + dashboard + simulated Symphony tab).
+- `symphony-dashboard.html` — the older simulated agents dashboard. **(animation only)**
 - `app.html` / `symphony-app.html` — body-only sources used to publish the web links.
-- `_shots/` — ready-made screenshots you can drop straight into a slide deck.
+- `_shots/` — screenshots for slides. Note: shots 4-6, 8 show the *simulated* board.
 - `README.md` — this file.
 
 ## Notes
