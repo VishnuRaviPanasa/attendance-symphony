@@ -3,7 +3,30 @@ import assert from "node:assert/strict";
 import {
   listEmployees, getEmployee, recFor, statusFor,
   countsForDay, lastWorkingDays, deptRates, allDates, isWeekend,
+  isValidDateString, isValidMonthString, currentMonth,
 } from "../lib/store.js";
+
+test("isValidDateString accepts real dates regardless of timezone", () => {
+  // Regression guard. A UTC round-trip implementation rejects all of these on a
+  // UTC+5:30 machine — the bug this helper exists to prevent.
+  for (const d of ["2026-07-15", "2026-01-01", "2026-12-31", "2024-02-29", "2026-08-11"]) {
+    assert.equal(isValidDateString(d), true, `${d} should be valid`);
+  }
+});
+
+test("isValidDateString rejects malformed and impossible dates", () => {
+  for (const d of ["15-07-2026", "2026-7-15", "2026-13-01", "2026-00-10", "2026-02-30",
+                   "2025-02-29", "2026-04-31", "nope", "", null, undefined, 20260715]) {
+    assert.equal(isValidDateString(d), false, `${d} should be invalid`);
+  }
+});
+
+test("isValidMonthString and currentMonth", () => {
+  assert.equal(isValidMonthString("2026-07"), true);
+  assert.equal(isValidMonthString("2026-13"), false);
+  assert.equal(isValidMonthString("2026-7"), false);
+  assert.match(currentMonth(), /^\d{4}-\d{2}$/);
+});
 
 test("employees are loaded", () => {
   const emps = listEmployees();

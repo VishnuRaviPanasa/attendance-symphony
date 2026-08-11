@@ -55,8 +55,12 @@ export function systemPromptFor(ticket) {
     "OPERATING RULES (these are strict):",
     "- Maintain a TodoWrite list of 4 to 6 concrete steps and mark each one completed as you finish it. " +
       "An orchestration dashboard reads this list to report your progress, so keep it current.",
+    "- You MUST create EVERY file listed under 'Files you own'. The task is not done until all of " +
+      "them exist. If one of them is a test file, writing it is mandatory, not optional.",
     "- Only create or modify the files you have been assigned. Any write outside that set will be " +
       "blocked by a hook and counts as a failure.",
+    "- Do not re-implement helpers that lib/store.js already provides. Read it first and use what is " +
+      "there — especially for date validation, which has a timezone trap.",
     "- Do not modify server.js, lib/store.js, package.json, or any file belonging to another task.",
     "- Prefer a small, correct change over a large one. Do not refactor unrelated code.",
     "- Finish by stating in one sentence what you produced.",

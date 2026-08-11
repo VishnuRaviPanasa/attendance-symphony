@@ -31,6 +31,35 @@ export const fmtDate = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-
 export const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
 export function todayKey() { const t = new Date(); t.setHours(0, 0, 0, 0); return fmtDate(t); }
 
+/**
+ * True when `s` is a real calendar date in YYYY-MM-DD.
+ *
+ * Use this instead of writing your own check. The obvious implementation —
+ *   new Date(s + "T00:00:00").toISOString().startsWith(s)
+ * — is WRONG: that constructor parses as LOCAL time while toISOString() formats as UTC, so
+ * every valid date is rejected in any timezone ahead of UTC (this machine is UTC+5:30).
+ * Two separate agent runs independently wrote that exact bug, which is why the correct
+ * version lives here as shared, tested code rather than being re-derived per feature.
+ */
+export function isValidDateString(s) {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const [y, m, d] = s.split("-").map(Number);
+  if (m < 1 || m > 12 || d < 1) return false;
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const lengths = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return d <= lengths[m - 1];
+}
+
+/** True when `s` is a well-formed YYYY-MM month. */
+export function isValidMonthString(s) {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}$/.test(s)) return false;
+  const m = Number(s.slice(5, 7));
+  return m >= 1 && m <= 12;
+}
+
+/** The current month as YYYY-MM, in local time. */
+export function currentMonth() { return todayKey().slice(0, 7); }
+
 /* ---------- employees ---------- */
 export function listEmployees() { return db().employees; }
 export function getEmployee(id) { return db().employees.find((e) => e.id === id) || null; }
