@@ -98,12 +98,17 @@ export function buildPrompt(ticket, { workspace }) {
     acceptance.length ? "## Acceptance criteria\n" + acceptance.map((a) => `- ${a}`).join("\n") : "",
     "",
     "## Definition of done",
-    ticket.verify
-      ? `- \`${ticket.verify}\` passes.`
-      : "- `npm test` passes (run it from the working directory).",
-    "- The feature works when exercised through the real data in `data/attendance.json`.",
+    // Enumerated here, not only under "Files you own", because agents build their plan from
+    // this section: a first run whose plan omitted the test file completed "successfully"
+    // with the file never written.
+    ...scope.map((f) => `- [ ] \`${f}\` exists and is complete.`),
+    `- [ ] \`${ticket.verify || "npm test"}\` passes.`,
+    "- [ ] The feature works against the real data in `data/attendance.json`.",
     "",
-    "Start by writing your TodoWrite list.",
+    scope.length > 1
+      ? `Your TodoWrite list must include one step per file above (${scope.length} files) plus a verification step. ` +
+        "Do not report success until every box is ticked."
+      : "Start by writing your TodoWrite list.",
   ].filter((l) => l !== null).join("\n");
 }
 

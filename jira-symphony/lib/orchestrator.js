@@ -42,9 +42,7 @@ export class Orchestrator extends EventEmitter {
     this.maxRetries = maxRetries;
     this.running = autoStart;
 
-    this.runId = "run-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    this.runDir = path.join(runsRoot, this.runId);
-    fs.mkdirSync(this.runDir, { recursive: true });
+    this._newRunDir();
 
     this.agents = Array.from({ length: agents }, (_, i) => ({
       id: "agent-" + String(i + 1).padStart(2, "0"),
@@ -64,6 +62,21 @@ export class Orchestrator extends EventEmitter {
     this.completedCount = 0;
     this.failedCount = 0;
     this.totalCostUsd = 0;
+  }
+
+  /**
+   * Start a fresh recording directory.
+   *
+   * Called on construction AND on reset. Without the reset call, every demo run of a given
+   * server session appended to one transcript, so replay would have re-played several runs
+   * concatenated as if they were one.
+   */
+  _newRunDir() {
+    this.runId = "run-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
+      + "-" + Math.random().toString(36).slice(2, 6);
+    this.runDir = path.join(this.runsRoot, this.runId);
+    fs.mkdirSync(this.runDir, { recursive: true });
+    return this.runId;
   }
 
   /* ─────────────── logging ─────────────── */
@@ -307,7 +320,8 @@ export class Orchestrator extends EventEmitter {
     this.failedCount = 0;
     this.totalCostUsd = 0;
     this.startedAt = Date.now();
-    this.log("i", "state cleared");
+    this._newRunDir();
+    this.log("i", `state cleared · recording to ${this.runId}`);
     this.emit("change");
   }
 

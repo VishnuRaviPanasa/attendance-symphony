@@ -87,6 +87,18 @@ try {
   /* fs.watch is unreliable on some Windows setups — the poll below is the safety net */
 }
 
+// Editing lib/ requires a full restart, NOT a route reload. Route files are re-imported with
+// a cache-busting query, but that does not invalidate their transitive imports: ESM keeps the
+// first lib/store.js it loaded forever. A stale copy here once made three correct agent-written
+// routes fail to mount with "does not provide an export named …", which looked like agent error
+// and was not. Run under `npm start` (node --watch-path=./lib) so this restarts cleanly.
+try {
+  fs.watch(path.join(__dirname, "lib"), () => {
+    console.warn("\n[attendance-api] lib/ changed — RESTART REQUIRED (ESM caches transitive imports).");
+    console.warn("[attendance-api] routes importing new exports will fail to mount until you restart.\n");
+  });
+} catch { /* optional */ }
+
 // Poll fallback: fs.watch misses events on Windows often enough to matter for a live demo.
 let lastSig = "";
 setInterval(() => {
