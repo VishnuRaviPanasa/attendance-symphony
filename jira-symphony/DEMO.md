@@ -160,7 +160,7 @@ Open **Reports** too: a *Monthly roll-up* table is now there, which ATT-102 prod
 Then the code itself:
 ```bash
 git status --short attendance-api      # the files they created
-cd attendance-api && npm test          # 37 tests pass — 28 written by the agents
+cd attendance-api && npm test          # suite now includes the agents' own tests
 ```
 > "Here's the code, and their own tests passing. I never restarted anything — the API discovers
 > new route files on its own, which is also why three agents could work at once without
@@ -236,7 +236,7 @@ not live, and the banner is there so nobody can mistake it. Never present a repl
 | Agent work compressed | 800 s of work in 417 s wall clock |
 | Cost | $0.72–$1.45 for three tickets |
 | Output | 3 endpoints + 3 test files |
-| Test suite | 37 passing — 28 written by the agents |
+| Test suite | 30-37 passing; ~2/3 written by the agents (varies per run) |
 
 ## Questions you'll get
 

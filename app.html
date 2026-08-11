@@ -1259,8 +1259,9 @@ function renderReports(c){
       <div id="rp-summary" style="font-size:12.5px;color:var(--muted)"></div>
       <button class="btn btn-ghost btn-sm" id="rp-export">${svg(IC.report,2.2)} Export CSV</button>
     </div>
-    <div class="card"><div class="tbl-wrap"><table class="tbl" id="rp-tbl"></table></div></div>
-    <div id="rp-monthly"></div>`;
+    <div id="rp-monthly"></div>
+    <div class="section-title" id="rp-raw-title" style="display:none">Raw records</div>
+    <div class="card"><div class="tbl-wrap"><table class="tbl" id="rp-tbl"></table></div></div>`;
   c.appendChild(v);
   ["rp-range","rp-dept","rp-status"].forEach(id=>{const el2=$("#"+id,v);if(el2)el2.addEventListener("change",()=>drawReport(v));});
   $("#rp-export",v).addEventListener("click",()=>exportCSV(v));
@@ -1277,22 +1278,26 @@ async function renderMonthlyReport(host){
     return;
   }
   const month=todayKey().slice(0,7);
-  host.innerHTML=`<div class="section-title" style="margin-top:26px">Monthly roll-up <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)">— shipped by Symphony (ATT-102)</span></div>
+  host.innerHTML=`<div class="section-title">Monthly roll-up <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)">— shipped by Symphony (ATT-102)</span></div>
     <div class="card card-pad"><div class="empty" style="padding:20px">Loading ${month}…</div></div>`;
   let d;
   try{ d=await apiGet("/api/reports/monthly?month="+encodeURIComponent(month)); }
   catch(e){ host.innerHTML=`<div class="section-title" style="margin-top:26px">Monthly roll-up</div>
     <div class="card card-pad"><div class="mono-err">GET /api/reports/monthly failed — ${esc2(e.message)}</div></div>`; return; }
 
+  const rawTitle=document.getElementById("rp-raw-title"); if(rawTitle)rawTitle.style.display="";
   const emps=Array.isArray(d.employees)?d.employees:[];
   const cols=["present","late","remote","leave","absent"];
-  host.innerHTML=`<div class="section-title" style="margin-top:26px">Monthly roll-up <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)">— shipped by Symphony (ATT-102)</span></div>
+  host.innerHTML=`<div class="section-title">Monthly roll-up <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)">— shipped by Symphony (ATT-102)</span></div>
     <div class="api-strip up"><span class="dot"></span><b>GET /api/reports/monthly?month=${esc2(d.month||month)}</b>
       <span>${d.workingDays??"—"} working days · ${emps.length} employees · computed server-side</span></div>
     <div class="card"><div class="tbl-wrap"><table class="tbl">
       <thead><tr><th>Employee</th><th>Department</th>${cols.map(c=>`<th>${STATUS[c]?STATUS[c].label:c}</th>`).join("")}<th>Hours</th><th>Rate</th></tr></thead>
       <tbody>${emps.slice(0,60).map(e=>{
-        const c2=e.counts||{};
+        // Agents regenerate this endpoint on every demo run, and "counts per status" is a fair
+        // thing to read either as a nested object or as flat fields. Accept both rather than
+        // render a table of zeros because an agent picked the other valid shape.
+        const c2=(e.counts&&typeof e.counts==="object")?e.counts:e;
         const rate=e.attendanceRate!=null?Math.round(e.attendanceRate*100)+"%":"—";
         return `<tr><td><span class="nm" style="font-size:13px">${esc2(e.name||e.id)}</span></td>
           <td style="color:var(--muted)">${esc2(e.dept||"")}</td>

@@ -50,8 +50,8 @@ in and the endpoint goes live with no restart. Each ticket therefore **owns its 
 No two agents ever touch the same file, so they genuinely run at once rather than serialising.
 A `PreToolUse` hook (`hooks/scope-guard.mjs`) enforces this — see [Containment](#containment).
 
-**Measured:** 3 agents, 234 s of agent work, **~130 s wall clock**, ~$1.08, 32 tests passing
-(9 hand-written + 23 written by the agents).
+**Measured:** 3 agents, 2-7 min wall clock, $0.72-1.45, 30-37 tests passing — 9 hand-written,
+the rest produced by the agents (the count varies because they choose their own coverage).
 
 ---
 

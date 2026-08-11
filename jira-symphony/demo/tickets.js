@@ -40,7 +40,7 @@ export const DEMO_TICKETS = [
       "GET /api/reports/monthly?month=YYYY-MM returns a report for that month.",
       "Defaults to the current month when ?month is omitted.",
       "Includes workingDays (count of distinct dates present in the data for that month).",
-      "Includes an employees array; each entry has id, name, dept, and counts per status, plus totalHours (sum of the hours field) and attendanceRate.",
+      "Includes an employees array. Each entry: id, name, dept, a nested `counts` object with one key per status (present, late, absent, leave, remote), plus totalHours (sum of the hours field) and attendanceRate.",
       "Includes a totals object aggregating across all employees.",
       "A malformed month returns HTTP 400 with a clear { error } message.",
       "A month with no data returns 200 with workingDays: 0 and an empty employees array — not an error.",

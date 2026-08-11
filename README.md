@@ -23,8 +23,8 @@ Progress on screen only moves when those processes emit events.
 - **[jira-symphony/DEMO.md](jira-symphony/DEMO.md)** — the manager script and operator runbook
 - **[jira-symphony/README.md](jira-symphony/README.md)** — architecture and how progress is derived
 
-Measured: 3 agents, 800 s of agent work compressed into ~2–7 min wall clock, ~$0.72–1.45,
-producing 3 live endpoints and 3 test files (37 tests pass; 28 of them written by the agents).
+Measured: 3 agents, 2–7 min wall clock, $0.72–1.45, producing 3 live endpoints and 3 test
+files. The app's dashboard then shows those endpoints' data where it showed nothing before.
 
 ## ⚠ The older simulated screens
 
