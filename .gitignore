@@ -1,0 +1,9 @@
+node_modules/
+.env
+*.log
+
+# Symphony runtime state — regenerated every run
+runs/
+tickets/inbox/
+tickets/active/
+tickets/done/

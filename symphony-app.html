@@ -1,0 +1,421 @@
+<style>
+/* ============================================================
+   Symphony · Live Build Dashboard — standalone, presentation-grade
+   Shows a fleet of autonomous agents building features IN PARALLEL.
+   Self-contained. No login, no external requests. Dark by default.
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+svg:not([width]){width:1em;height:1em;flex:none}
+
+:root{
+  --font:"Segoe UI Variable","Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:"Cascadia Code","JetBrains Mono","SF Mono",Consolas,monospace;
+  /* dark (default — best for projection) */
+  --bg:#080d14; --bg-grad:radial-gradient(1300px 700px at 82% -12%, #0f2e2c 0%, rgba(15,46,44,0) 58%), var(--bg);
+  --surface:#101a26; --surface-2:#0c141d; --surface-3:#17232f;
+  --border:#213040; --border-2:#2c3f52;
+  --ink:#e9f1f5; --ink-2:#bcc9d3; --muted:#8496a4; --muted-2:#5c6c78;
+  --accent:#f87171; --accent-2:#ef4444; --accent-ink:#450a0a; --accent-soft:rgba(248,113,113,.13); --accent-glow:rgba(248,113,113,.25);
+  --running:#f87171; --claimed:#60a5fa; --review:#fbbf24; --done:#34d399; --idle:#5c6c78;
+  --red:#f87171;
+  --shadow:0 10px 34px rgba(0,0,0,.5); --shadow-sm:0 2px 8px rgba(0,0,0,.4);
+  --radius:16px;
+}
+:root[data-theme="light"]{
+  --bg:#eef2f2; --bg-grad:radial-gradient(1300px 700px at 82% -12%, #fbe6e6 0%, rgba(251,230,230,0) 60%), var(--bg);
+  --surface:#ffffff; --surface-2:#f5f9f9; --surface-3:#eaf1f1;
+  --border:#dbe4e4; --border-2:#c6d4d4;
+  --ink:#0d1f1e; --ink-2:#33474 6; --ink-2:#334746; --muted:#5c6f70; --muted-2:#8aa0a0;
+  --accent:#dc2626; --accent-2:#b91c1c; --accent-ink:#fff; --accent-soft:#fbe0e0; --accent-glow:rgba(220,38,38,.2);
+  --running:#dc2626; --claimed:#2563eb; --review:#c2740a; --done:#16a34a; --idle:#8aa0a0; --red:#dc2626;
+  --shadow:0 16px 40px rgba(13,31,30,.14); --shadow-sm:0 2px 8px rgba(13,31,30,.07);
+}
+body{font-family:var(--font);background:var(--bg-grad);color:var(--ink);min-height:100vh;font-size:15px;-webkit-font-smoothing:antialiased;line-height:1.45}
+.tnum{font-variant-numeric:tabular-nums}
+.wrap{max-width:1680px;margin:0 auto;padding:20px 26px 40px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- header ---------- */
+.hdr{display:flex;align-items:center;gap:16px;padding:8px 4px 20px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:13px}
+.logo .mk{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),#fca5a5);color:var(--accent-ink);box-shadow:0 10px 26px var(--accent-glow)}
+.logo .mk svg{width:26px;height:26px}
+.logo .t{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.logo .t span{opacity:.6;font-weight:500}
+.logo .s{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:7px;margin-top:2px}
+.live{width:8px;height:8px;border-radius:50%;background:var(--done);animation:live 1.5s infinite}
+@keyframes live{0%{box-shadow:0 0 0 0 rgba(52,211,153,.55)}70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.hdr .sp{flex:1}
+.iconbtn{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;color:var(--ink-2);border:1px solid var(--border);background:var(--surface)}
+.iconbtn:hover{background:var(--surface-3);border-color:var(--border-2)}
+.iconbtn svg{width:19px;height:19px}
+
+/* ---------- parallel banner + metrics ---------- */
+.metrics{display:grid;grid-template-columns:1.5fr repeat(5,1fr);gap:14px;margin-bottom:20px}
+.mcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.mcard .v{font-size:34px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.mcard .k{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:7px}
+.mcard.hero{background:radial-gradient(500px 200px at 100% 0%, var(--accent-glow), transparent 60%),var(--surface);
+  border-color:color-mix(in srgb,var(--accent) 40%,var(--border))}
+.mcard.hero .v{color:var(--accent);font-size:40px;display:flex;align-items:baseline;gap:8px}
+.mcard.hero .v small{font-size:18px;color:var(--ink-2);font-weight:700}
+.mcard.hero .k{font-size:13.5px;color:var(--ink-2);font-weight:700}
+.parallel-dots{display:flex;gap:5px;margin-top:12px}
+.pd{flex:1;height:6px;border-radius:4px;background:var(--surface-3)}
+.pd.on{background:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
+
+/* ---------- controls ---------- */
+.controls{display:flex;gap:11px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;box-shadow:var(--shadow-sm)}
+.feat-in{flex:1;min-width:260px;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;font-size:15px}
+.feat-in:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:11px;font-weight:700;font-size:14.5px;
+  background:var(--accent);color:var(--accent-ink);box-shadow:0 8px 22px var(--accent-glow);transition:transform .06s,background .15s;border:1px solid transparent}
+.btn:hover{background:var(--accent-2)} .btn:active{transform:translateY(1px)}
+.btn svg{width:17px;height:17px}
+.slots{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap}
+.slots input[type=range]{accent-color:var(--accent);width:120px}
+.slots b{color:var(--ink);font-size:15px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chips .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-2);font-weight:700}
+.chip{padding:7px 12px;border:1px solid var(--border);border-radius:22px;background:var(--surface-2);font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- agent grid (HERO) ---------- */
+.sec-h{display:flex;align-items:center;gap:10px;margin:4px 2px 13px}
+.sec-h .tt{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.sec-h .sub{font-size:13px;color:var(--muted)}
+.agrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:24px}
+.agent{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:var(--shadow-sm);
+  transition:border-color .2s,opacity .3s}
+.agent.run{border-color:color-mix(in srgb,var(--accent) 48%,var(--border));box-shadow:0 0 0 1px var(--accent-glow),var(--shadow-sm)}
+.agent.idle{opacity:.5}
+.a-top{display:flex;align-items:center;gap:11px;margin-bottom:11px}
+.a-av{width:36px;height:36px;border-radius:10px;color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;flex:none;position:relative}
+.agent.run .a-av::after{content:"";position:absolute;inset:-3px;border-radius:13px;border:2px solid currentColor;opacity:.4;animation:spin 2.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.a-id{font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px}
+.a-id .tid{font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:700}
+.a-task{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-state{margin-left:auto;font-size:11px;font-weight:800;padding:3px 10px;border-radius:22px;flex:none;text-transform:uppercase;letter-spacing:.03em}
+.a-state.running{background:var(--accent-soft);color:var(--accent)}
+.a-state.done{background:rgba(52,211,153,.15);color:var(--done)}
+.a-state.idle{background:var(--surface-3);color:var(--muted)}
+.pips{display:flex;gap:4px;margin-bottom:10px}
+.pip{flex:1;height:6px;border-radius:4px;background:var(--surface-3);overflow:hidden;position:relative}
+.pip.done{background:var(--accent)}
+.pip.cur::after{content:"";position:absolute;inset:0;background:var(--accent);width:var(--pp,0%);box-shadow:0 0 8px var(--accent-glow)}
+.a-phase{font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.a-phase .pct{margin-left:auto;color:var(--muted);font-weight:800}
+.a-metrics{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.a-metrics b{color:var(--ink-2);font-weight:800}
+.a-metrics svg{width:13px;height:13px;color:var(--accent)}
+.a-metrics .add{color:var(--done);font-family:var(--mono);font-weight:700}
+.a-metrics .del{color:var(--red);font-family:var(--mono);font-weight:700}
+.a-log{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-family:var(--mono);
+  font-size:11.5px;line-height:1.6;height:74px;overflow:hidden;color:var(--muted)}
+.a-log .ln{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-log .ok{color:var(--done)} .a-log .em{color:var(--ink-2)} .a-log .ac{color:var(--accent)}
+.a-idle-note{font-size:12.5px;color:var(--muted-2);text-align:center;padding:22px 0;font-style:italic}
+
+/* ---------- bottom: board + log ---------- */
+.bottom{display:grid;grid-template-columns:1.55fr 1fr;gap:16px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.panel>.h{padding:13px 16px;border-bottom:1px solid var(--border);font-weight:800;font-size:14px;display:flex;align-items:center;gap:9px}
+.panel>.h svg{width:16px;height:16px;color:var(--accent)}
+.panel>.h .sub{font-weight:500;color:var(--muted);font-size:12px}
+.kb{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;padding:13px}
+.kcol{background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:8px;min-height:90px}
+.kcol .ch{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--ink-2);padding:2px 4px 8px;text-transform:uppercase;letter-spacing:.03em}
+.kcol .ch .cdot{width:8px;height:8px;border-radius:50%}
+.kcol .ch .cnt{margin-left:auto;background:var(--surface-3);color:var(--muted);border-radius:20px;padding:0 7px;font-size:11px}
+.kc{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 9px;margin-bottom:7px;animation:kin .3s ease}
+@keyframes kin{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:none}}
+.kc .id{font-family:var(--mono);font-size:10px;color:var(--accent);font-weight:700}
+.kc .ti{font-size:11.5px;font-weight:600;margin:2px 0 6px;line-height:1.25}
+.kc .mt{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.kc .av{width:16px;height:16px;border-radius:5px;color:#fff;display:grid;place-items:center;font-size:8px;font-weight:800;margin-left:auto}
+.tag{font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:5px;background:var(--surface-3);color:var(--muted)}
+.pr{font-size:10px;color:var(--done);font-weight:800;margin-left:auto;display:flex;align-items:center;gap:3px}
+.pr svg{width:11px;height:11px}
+.qstrip{padding:0 13px 13px}
+.qstrip .qh{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:4px 0 8px}
+.qitems{display:flex;gap:6px;flex-wrap:wrap}
+.qi{font-size:10.5px;font-family:var(--mono);padding:4px 9px;border:1px dashed var(--border-2);border-radius:8px;color:var(--muted)}
+.olog{max-height:520px;display:flex;flex-direction:column}
+.olog .body{overflow:auto;padding:6px 2px;font-family:var(--mono);font-size:11.8px;line-height:1.75}
+.olog .ll{padding:2px 12px;display:flex;gap:8px;color:var(--ink-2)}
+.olog .ll .ts{color:var(--muted-2);flex:none}
+.olog .ll .ti{color:var(--accent);font-weight:800;flex:none}
+.olog .ll .tw{color:var(--review);font-weight:800;flex:none}
+.olog .ll .tok{color:var(--done);font-weight:800;flex:none}
+
+/* toast */
+#toasts{position:fixed;right:22px;bottom:22px;z-index:60;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--done);border-radius:12px;box-shadow:var(--shadow);
+  padding:13px 16px;display:flex;gap:11px;align-items:center;min-width:270px;animation:slin .25s ease}
+.toast svg{width:19px;height:19px;color:var(--done);flex:none}
+.toast .tt{font-weight:700;font-size:14px} .toast .td{font-size:12.5px;color:var(--muted)}
+@keyframes slin{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+
+@media (max-width:1200px){
+  .metrics{grid-template-columns:repeat(3,1fr)} .mcard.hero{grid-column:1/-1}
+  .bottom{grid-template-columns:1fr} .kb{overflow-x:auto}
+}
+@media (max-width:640px){ .metrics{grid-template-columns:repeat(2,1fr)} }
+</style>
+
+<div class="wrap">
+  <div class="hdr">
+    <div class="logo">
+      <div class="mk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/><circle cx="12" cy="12" r="2.4"/></svg></div>
+      <div>
+        <div class="t">Symphony <span>· Live Build</span></div>
+        <div class="s"><span class="live"></span> Orchestrator running · polling tracker · reconciling every tick</div>
+      </div>
+    </div>
+    <div class="sp"></div>
+    <button class="iconbtn" id="full-btn" title="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+    <button class="iconbtn" id="theme-btn" title="Theme"><svg id="theme-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+  </div>
+
+  <div class="metrics">
+    <div class="mcard hero">
+      <div class="v tnum"><span id="m-active">0</span><small id="m-max">/ 6 slots</small></div>
+      <div class="k">agents building in parallel</div>
+      <div class="parallel-dots" id="pdots"></div>
+    </div>
+    <div class="mcard"><div class="v tnum" id="m-run">0</div><div class="k">tasks completed</div></div>
+    <div class="mcard"><div class="v tnum" id="m-tokens">0</div><div class="k">tokens used</div></div>
+    <div class="mcard"><div class="v tnum" id="m-rate">0</div><div class="k">tokens / sec</div></div>
+    <div class="mcard"><div class="v tnum" id="m-prs">0</div><div class="k">PRs merged</div></div>
+    <div class="mcard"><div class="v tnum" id="m-feats">0</div><div class="k">features shipped</div></div>
+  </div>
+
+  <div class="controls">
+    <input class="feat-in" id="feat" placeholder="Describe a feature to build — e.g. “Overtime &amp; payroll export”…">
+    <button class="btn" id="dispatch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg> Dispatch to agents</button>
+    <div class="slots">Max parallel <input type="range" min="1" max="8" value="6" id="slots"> <b class="tnum" id="slots-v">6</b></div>
+    <div class="chips"><span class="lbl">Quick:</span><span id="chips"></span></div>
+  </div>
+
+  <div class="sec-h"><span class="tt">Agent fleet</span><span class="sub">— each agent works its own task, in an isolated workspace, at the same time</span></div>
+  <div class="agrid" id="agrid"></div>
+
+  <div class="bottom">
+    <div class="panel">
+      <div class="h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg> Task board <span class="sub">· issue tracker as control plane</span></div>
+      <div class="kb" id="kb"></div>
+      <div class="qstrip"><div class="qh">Backpressure queue — waiting for a free slot</div><div class="qitems" id="queue"></div></div>
+    </div>
+    <div class="panel olog">
+      <div class="h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/></svg> Orchestrator log <span class="live" style="margin-left:2px"></span></div>
+      <div class="body" id="olog"></div>
+    </div>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+(function(){
+"use strict";
+const $=(s,r)=>(r||document).querySelector(s);
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const pad=n=>String(n).padStart(2,"0");
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const svg=(p,w)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w||2}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const IC={check:'<path d="M20 6L9 17l-5-5"/>',bolt:'<path d="M13 2L3 14h7l-1 8 10-12h-7z"/>',pr:'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v6M13 6h3a2 2 0 0 1 2 2v7"/><circle cx="18" cy="18" r="3"/>'};
+
+const AV=["#0d9488","#2563eb","#9333ea","#c2740a","#16a34a","#db2777","#0891b2","#e11d48"];
+const PHASES=["PreparingWorkspace","BuildingPrompt","LaunchingAgentProcess","InitializingSession","StreamingTurn","Finishing"];
+const PHASE_MS=[1500,1700,1400,1600,7200,1900];
+const FEATURE_TEMPLATES=[
+  {t:"Data model & migration for {F}",labels:["backend","db"],p:1},
+  {t:"REST API endpoints for {F}",labels:["backend","api"],p:1},
+  {t:"Dashboard UI for {F}",labels:["frontend"],p:2},
+  {t:"Validation & edge cases — {F}",labels:["backend"],p:2},
+  {t:"Unit & integration tests — {F}",labels:["tests"],p:3},
+  {t:"Docs & changelog — {F}",labels:["docs"],p:4},
+];
+const QUICK=["Biometric device check-in","Shift scheduling","Leave approval workflow","Geo-fenced remote check-in","Overtime & payroll export","Slack absence alerts","Face-recognition kiosk","Timesheet approvals"];
+const MODS=["checkin","attendance","schedule","leave","payroll","report","device","geofence","notify","auth","kiosk","timesheet"];
+const LOG={
+  PreparingWorkspace:["cloning attendance-app @ main","checkout -b {BR}","workspace ready: {WS}","installing deps (pnpm) …"],
+  BuildingPrompt:["reading SPEC + issue {ID}","indexing 214 files · 38k LOC","assembling context window","system prompt composed"],
+  LaunchingAgentProcess:["spawning codex app-server (pid {PID})","session {SID} attached","tools: fs, shell, git, test"],
+  InitializingSession:["reconcile: claim {ID} → running","loading repo conventions","plan: {N} steps drafted"],
+  StreamingTurn:["edit src/{MOD}.js <span class='ac'>(+{A} -{D})</span>","add tests/{MOD}.test.js","run <span class='em'>pnpm test</span> …","<span class='ok'>✓ {TP} passing</span>","lint --fix · 0 errors","edit routes/{MOD}.ts <span class='ac'>(+{A2} -0)</span>","typecheck <span class='ok'>✓ clean</span>","refactor {MOD} handler"],
+  Finishing:["git commit -m \"feat: {F}\"","push origin {BR}","open PR <span class='ac'>#{PR}</span>","CI: build <span class='ok'>✓</span> · e2e <span class='ok'>✓</span>","request review · complexity: low"],
+};
+
+const S={agents:[],tasks:[],log:[],maxConc:6,seq:12,prSeq:41,tokens:0,prs:0,feats:0,completed:0,tokWindow:[],lastTs:0};
+let _clock=9*3600+11*60+30;
+function clock(){_clock+=Math.floor(1+Math.random()*3);const h=Math.floor(_clock/3600)%24,m=Math.floor(_clock/60)%60,s=_clock%60;return pad(h)+":"+pad(m)+":"+pad(s);}
+function olog(k,m){S.log.push({k,m,ts:clock()});if(S.log.length>160)S.log.shift();}
+function rid(){return "SYM-"+(S.seq++);}
+function mkAgent(i){return{id:"agent-"+pad(i+1),color:AV[i%AV.length],status:"idle",task:null,phase:0,pp:0,tokens:0,elapsed:0,log:[],br:"",ws:"",pid:0,sid:"",add:0,del:0,files:0};}
+function activeCount(){return S.agents.filter(a=>a.status==="running").length;}
+
+function dispatchFeature(name,pre,silent){
+  const n=3+Math.floor(Math.random()*3);
+  const created=[];
+  FEATURE_TEMPLATES.slice(0,n).forEach(tpl=>{
+    const id=rid();
+    created.push({id,feature:name,title:tpl.t.replace("{F}",name),labels:tpl.labels,prio:tpl.p,state:"backlog",agentId:null,tokens:0,add:0,del:0,files:0,pr:null,mod:MODS[Math.floor(Math.random()*MODS.length)]});
+  });
+  S.tasks.push(...created);
+  olog("i",`feature "${name}" → filed ${created.length} issues (${created[0].id}…${created[created.length-1].id})`);
+  if(!pre&&!silent) toast(`Dispatched "${name}"`,`${created.length} tasks queued for the agents`);
+  if(pre) pump(true);
+  return created;
+}
+function pump(instant){
+  const bl=S.tasks.filter(t=>t.state==="backlog").sort((a,b)=>a.prio-b.prio);
+  for(const t of bl){
+    if(activeCount()>=S.maxConc)break;
+    const a=S.agents.find(x=>x.status==="idle");if(!a)break;
+    t.state="running";t.agentId=a.id;
+    a.status="running";a.task=t;a.phase=0;a.pp=0;a.tokens=0;a.elapsed=0;a.log=[];a.add=0;a.del=0;a.files=0;
+    a.br="sym/"+t.id.toLowerCase()+"-"+t.mod;a.ws="~/.symphony/ws/"+t.id.toLowerCase()+"-"+Math.random().toString(36).slice(2,6);
+    a.pid=2000+Math.floor(Math.random()*7000);a.sid=Math.random().toString(36).slice(2,10);
+    olog("i",`dispatch ${t.id} → ${a.id} · slot ${activeCount()}/${S.maxConc}`);
+    pushLog(a,0);
+    if(instant){a.phase=Math.floor(Math.random()*5);a.pp=Math.random()*80;a.tokens=Math.floor(Math.random()*1800);}
+  }
+}
+function pushLog(a,pi){
+  const t=a.task;const pool=LOG[PHASES[pi]];
+  const ln=pool[Math.floor(Math.random()*pool.length)]
+    .replace("{ID}",t.id).replace("{BR}",a.br).replace("{WS}",a.ws).replace("{PID}",a.pid).replace("{SID}",a.sid)
+    .replace("{N}",3+Math.floor(Math.random()*4)).replace("{MOD}",t.mod)
+    .replace("{A}",20+Math.floor(Math.random()*180)).replace("{A2}",10+Math.floor(Math.random()*90))
+    .replace("{D}",Math.floor(Math.random()*40)).replace("{TP}",12+Math.floor(Math.random()*40))
+    .replace("{F}",t.feature).replace("{PR}",t.pr||"—");
+  if(a.log[a.log.length-1]!==ln){a.log.push(ln);if(a.log.length>5)a.log.shift();}
+}
+function step(dt){
+  let tokDelta=0;
+  S.agents.forEach(a=>{
+    if(a.status!=="running")return;
+    a.elapsed+=dt;a.pp+=(dt/PHASE_MS[a.phase])*100;
+    const rate=a.phase===4?46:a.phase===1?15:6;
+    const d=Math.floor(rate*(dt/100)*(0.7+Math.random()*0.6));
+    a.tokens+=d;a.task.tokens+=d;S.tokens+=d;tokDelta+=d;
+    if(a.phase===4&&Math.random()<0.2){a.files++;const ad=8+Math.floor(Math.random()*60),de=Math.floor(Math.random()*20);a.add+=ad;a.del+=de;a.task.add+=ad;a.task.del+=de;a.task.files++;}
+    if(Math.random()<0.15)pushLog(a,a.phase);
+    if(a.pp>=100){a.pp=0;a.phase++;if(a.phase>=PHASES.length)complete(a);else pushLog(a,a.phase);}
+  });
+  S.tokWindow.push({t:performance.now(),d:tokDelta});
+  const cut=performance.now()-2000;while(S.tokWindow.length&&S.tokWindow[0].t<cut)S.tokWindow.shift();
+  pump(false);
+}
+function complete(a){
+  const t=a.task;t.pr=S.prSeq++;pushLog(a,5);t.state="review";S.prs++;S.completed++;
+  olog("ok",`${t.id} PR #${t.pr} opened · CI green · ${a.tokens.toLocaleString()} tok`);
+  const fa=a;a.status="done";
+  setTimeout(()=>{
+    t.state="done";olog("ok",`merge ${t.id} · PR #${t.pr} → main · claim released`);
+    const rem=S.tasks.filter(x=>x.feature===t.feature&&x.state!=="done");
+    if(!rem.length){S.feats++;olog("i",`feature "${t.feature}" shipped · all issues closed`);toast("Feature shipped 🎉",`"${t.feature}" merged to main`);}
+    fa.status="idle";fa.task=null;pump(false);
+  },900+Math.random()*1000);
+}
+
+/* ---------- render ---------- */
+function init(){
+  for(let i=0;i<8;i++)S.agents.push(mkAgent(i));
+  olog("i","symphony orchestrator started · polling tracker every 2s");
+  olog("i","max_concurrent_agents = "+S.maxConc);
+  dispatchFeature("Add biometric device check-in",true);
+  dispatchFeature("Shift scheduling",true);
+  dispatchFeature("Leave approval workflow",false,true);
+  buildAgents();buildChips();buildPdots();
+  drawKb();drawQueue();drawLog();drawMetrics();
+}
+function buildChips(){const h=$("#chips");QUICK.forEach(f=>{const b=el("button","chip",f);b.onclick=()=>dispatchFeature(f,false);h.appendChild(b);});}
+function buildPdots(){const h=$("#pdots");h.innerHTML="";for(let i=0;i<8;i++)h.appendChild(el("div","pd"));}
+const REF={};
+function buildAgents(){const h=$("#agrid");h.innerHTML="";REF.a={};S.agents.forEach(a=>{const c=el("div","agent");c.id="ag-"+a.id;h.appendChild(c);REF.a[a.id]=c;fillAgent(c,a);});}
+function fillAgent(c,a){
+  c.className="agent "+(a.status==="running"?"run":a.status==="done"?"run":"idle");
+  if(a.status==="idle"){
+    c.innerHTML=`<div class="a-top"><div class="a-av" style="background:var(--surface-3);color:var(--muted)">${a.id.slice(-2)}</div>
+      <div style="min-width:0"><div class="a-id">${a.id}</div><div class="a-task">idle · awaiting dispatch</div></div>
+      <span class="a-state idle">idle</span></div>
+      <div class="a-idle-note">no task claimed — orchestrator assigns when a slot frees</div>`;return;
+  }
+  const t=a.task;const done=a.status==="done";
+  const phase=done?"turn complete":PHASES[Math.min(a.phase,5)];
+  const pct=clamp(Math.round(((a.phase+(done?1:a.pp/100))/PHASES.length)*100),0,100);
+  let pips="";for(let i=0;i<PHASES.length;i++){const cl=(i<a.phase||done)?"done":i===a.phase?"cur":"";pips+=`<div class="pip ${cl}" ${i===a.phase&&!done?`style="--pp:${a.pp.toFixed(0)}%"`:""}></div>`;}
+  c.innerHTML=`<div class="a-top"><div class="a-av" style="background:${a.color}">${a.id.slice(-2)}</div>
+      <div style="min-width:0"><div class="a-id">${a.id} <span class="tid">${t.id}</span></div><div class="a-task" title="${t.title}">${t.title}</div></div>
+      <span class="a-state ${done?"done":"running"}">${done?"done":"running"}</span></div>
+    <div class="pips">${pips}</div>
+    <div class="a-phase">${done?"✓ turn complete":phase}<span class="pct tnum">${pct}%</span></div>
+    <div class="a-metrics"><span>${svg(IC.bolt,2.2)} <b class="tnum">${a.tokens.toLocaleString()}</b> tok</span>
+      <span class="tnum">⏱ ${(a.elapsed/1000).toFixed(1)}s</span>
+      <span class="add">+${a.add}</span><span class="del">-${a.del}</span><span style="color:var(--muted-2)">${a.files} files</span></div>
+    <div class="a-log">${a.log.map(l=>`<div class="ln">${l}</div>`).join("")||`<div class="ln" style="color:var(--muted-2)">${a.ws}</div>`}</div>`;
+}
+function agPhase(t){const a=t.agentId?S.agents.find(x=>x.id===t.agentId):null;return a?a.phase:-1;}
+function colTasks(k){
+  if(k==="claimed")return S.tasks.filter(t=>t.state==="running"&&agPhase(t)===0);
+  if(k==="running")return S.tasks.filter(t=>t.state==="running"&&agPhase(t)>=1);
+  return S.tasks.filter(t=>t.state===k);
+}
+function drawKb(){
+  const cols=[["backlog","Backlog","var(--idle)"],["claimed","Claimed","var(--claimed)"],["running","Running","var(--running)"],["review","In Review","var(--review)"],["done","Done","var(--done)"]];
+  const h=$("#kb");h.innerHTML="";
+  cols.forEach(([k,label,col])=>{
+    const items=colTasks(k);const shown=k==="done"?items.slice(-5):items;
+    const c=el("div","kcol");
+    c.innerHTML=`<div class="ch"><span class="cdot" style="background:${col}"></span>${label}<span class="cnt tnum">${items.length}</span></div>`+
+      shown.map(t=>{const a=t.agentId?S.agents.find(x=>x.id===t.agentId):null;
+        return `<div class="kc"><div class="id">${t.id}</div><div class="ti">${t.title}</div>
+          <div class="mt">${t.labels.slice(0,2).map(l=>`<span class="tag">${l}</span>`).join("")}
+          ${(t.state==="review"||t.state==="done")?`<span class="pr">${svg(IC.pr,2.2)}#${t.pr}</span>`:a?`<span class="av" style="background:${a.color}">${a.id.slice(-2)}</span>`:""}</div></div>`;}).join("");
+    h.appendChild(c);
+  });
+}
+function drawQueue(){const q=S.tasks.filter(t=>t.state==="backlog");$("#queue").innerHTML=q.length?q.slice(0,12).map(t=>`<span class="qi">${t.id} · ${t.title.length>24?t.title.slice(0,24)+"…":t.title}</span>`).join(""):`<span style="font-size:12px;color:var(--muted-2)">— empty · all work dispatched —</span>`;}
+function drawLog(){const h=$("#olog");h.innerHTML=S.log.slice(-70).map(l=>`<div class="ll"><span class="ts">${l.ts}</span><span class="${l.k==="ok"?"tok":l.k==="w"?"tw":"ti"}">${l.k==="ok"?"merge":l.k==="w"?"warn":"orch"}</span><span>${l.m}</span></div>`).join("");h.scrollTop=h.scrollHeight;}
+function drawMetrics(){
+  const act=activeCount();
+  $("#m-active").textContent=act;$("#m-max").textContent="/ "+S.maxConc+" slots";
+  $("#m-run").textContent=S.completed;$("#m-tokens").textContent=S.tokens.toLocaleString();
+  const winTok=S.tokWindow.reduce((s,x)=>s+x.d,0);$("#m-rate").textContent=Math.round(winTok/2).toLocaleString();
+  $("#m-prs").textContent=S.prs;$("#m-feats").textContent=S.feats;
+  const dots=$("#pdots").children;for(let i=0;i<dots.length;i++)dots[i].classList.toggle("on",i<act);
+}
+let _sig="",_llen=0;
+function live(){
+  drawMetrics();
+  S.agents.forEach(a=>fillAgent(REF.a[a.id],a));
+  const sig=S.tasks.map(t=>t.state==="running"?(agPhase(t)===0?"c":"r"):t.state[0]).join("")+"|"+S.tasks.length;
+  if(sig!==_sig){_sig=sig;drawKb();drawQueue();}
+  if(S.log.length!==_llen){_llen=S.log.length;drawLog();}
+}
+function toast(tt,td){const t=el("div","toast",`${svg(IC.check,2.4)}<div><div class="tt">${tt}</div>${td?`<div class="td">${td}</div>`:""}</div>`);$("#toasts").appendChild(t);setTimeout(()=>{t.style.opacity="0";t.style.transform="translateX(20px)";setTimeout(()=>t.remove(),250);},3400);}
+
+/* controls */
+$("#dispatch").onclick=()=>{const i=$("#feat");const v=i.value.trim();if(!v){i.focus();return;}dispatchFeature(v,false);i.value="";};
+$("#feat").addEventListener("keydown",e=>{if(e.key==="Enter")$("#dispatch").click();});
+$("#slots").addEventListener("input",e=>{S.maxConc=+e.target.value;$("#slots-v").textContent=S.maxConc;$("#m-max").textContent="/ "+S.maxConc+" slots";olog("i","max_concurrent_agents updated → "+S.maxConc);});
+$("#full-btn").onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();else document.exitFullscreen&&document.exitFullscreen();};
+function applyTheme(t){document.documentElement.setAttribute("data-theme",t);
+  $("#theme-ic").innerHTML=t==="dark"?'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>':'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+  try{localStorage.setItem("symdash.theme",t);}catch(e){}}
+$("#theme-btn").onclick=()=>{const c=document.documentElement.getAttribute("data-theme");applyTheme(c==="dark"?"light":"dark");};
+let th="dark";try{th=localStorage.getItem("symdash.theme")||"dark";}catch(e){}applyTheme(th);
+
+init();
+S.lastTs=performance.now();
+setInterval(()=>{const now=performance.now();let dt=now-S.lastTs;S.lastTs=now;dt=clamp(dt,0,400);step(dt);live();},120);
+})();
+</script>
