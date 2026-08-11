@@ -1,0 +1,18 @@
+{
+  "id": "101",
+  "key": "ATT-101",
+  "title": "Add employee attendance summary API",
+  "kind": "backend",
+  "priority": 1,
+  "scope": ["routes/summary.js"],
+  "spec": "HR needs a single endpoint that summarises attendance for a given day without the browser having to compute it. Today the browser app recalculates this client-side on every render.",
+  "acceptance": [
+    "GET /api/attendance/summary returns a JSON object for today by default.",
+    "It accepts an optional ?date=YYYY-MM-DD query parameter and uses that day instead.",
+    "The response includes: date, totals (a head-count per status: present, late, absent, leave, remote, unmarked), headcount (total employees), and attendanceRate (present+late+remote divided by headcount, rounded to 4 decimals).",
+    "It also includes byDepartment, using deptRates() from lib/store.js.",
+    "An invalid date (not YYYY-MM-DD) returns HTTP 400 with a clear { error } message.",
+    "Export a meta object with name and description, matching the pattern in routes/health.js."
+  ],
+  "verify": "npm test"
+}

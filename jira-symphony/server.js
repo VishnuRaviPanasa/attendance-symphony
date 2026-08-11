@@ -1,173 +1,259 @@
+// Symphony Operations Console — server.
+//
+// Replaces the old simulated engine. The SSE transport and the general shape are inherited
+// from the previous server (it already worked); what changed is the source of truth: state now
+// comes from real Claude Code processes via lib/orchestrator.js, not from a tick() function.
+//
+//   npm start          → console on http://localhost:4300
+//
+// Port note: 4300, not 4000. Port 4000 is occupied on this machine by an unrelated service.
+
 import "dotenv/config";
 import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
-import { JiraClient, normalizeIssue } from "./lib/jira.js";
-import { Symphony } from "./lib/symphony.js";
+import fs from "node:fs";
+import path from "node:path";
+import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+import { Orchestrator } from "./lib/orchestrator.js";
+import { FileTicketSource } from "./lib/sources/file-tickets.js";
+import { JiraTicketSource } from "./lib/sources/jira-tickets.js";
+import { resolveCli } from "./lib/agent-runner.js";
+import { DEMO_TICKETS } from "./demo/tickets.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(__dirname, "..");
 
-// ---------- config ----------
 const cfg = {
-  port: +(process.env.PORT || 4000),
-  baseUrl: process.env.JIRA_BASE_URL || "",
-  email: process.env.JIRA_EMAIL || "",
-  token: process.env.JIRA_API_TOKEN || "",
-  jql: process.env.JIRA_JQL || "assignee = currentUser() ORDER BY updated DESC",
-  pollSec: +(process.env.POLL_INTERVAL_SEC || 15),
-  maxConc: +(process.env.MAX_CONCURRENT_AGENTS || 4),
-  agents: +(process.env.AGENTS || 8),
-  writeBack: String(process.env.WRITE_BACK || "true") === "true",
-  statusInProgress: process.env.STATUS_IN_PROGRESS || "In Progress",
-  statusDone: process.env.STATUS_DONE || "Done",
-  dispatchExistingOnStart: String(process.env.DISPATCH_EXISTING_ON_START || "false") === "true",
-  mock: String(process.env.JIRA_MOCK || "false") === "true",
-  mockAuto: String(process.env.MOCK_AUTODISPATCH || "true") === "true",
+  port: +(process.env.PORT || 4300),
+  workspace: process.env.WORKSPACE || path.join(REPO_ROOT, "attendance-api"),
+  agents: +(process.env.AGENTS || 6),
+  maxConc: +(process.env.MAX_CONCURRENT_AGENTS || 3),
+  maxRetries: +(process.env.MAX_RETRIES || 1),
+  apiPort: +(process.env.API_PORT || 4400),
+  jira: {
+    baseUrl: process.env.JIRA_BASE_URL || "",
+    email: process.env.JIRA_EMAIL || "",
+    token: process.env.JIRA_API_TOKEN || "",
+    jql: process.env.JIRA_JQL || "assignee = currentUser() ORDER BY updated DESC",
+    pollSec: +(process.env.POLL_INTERVAL_SEC || 15),
+    dispatchExisting: String(process.env.DISPATCH_EXISTING_ON_START || "false") === "true",
+  },
 };
-// no credentials => fall back to mock so the dashboard still runs
-if (!cfg.mock && (!cfg.baseUrl || !cfg.email || !cfg.token)) {
-  console.warn("[jira-symphony] No Jira credentials found — starting in MOCK mode. Fill .env to connect for real.");
-  cfg.mock = true;
-}
-const siteName = (() => { try { return new URL(cfg.baseUrl).host.split(".")[0]; } catch { return cfg.mock ? "mock" : "jira"; } })();
 
-// ---------- Jira ----------
-const jira = cfg.mock ? null : new JiraClient({ baseUrl: cfg.baseUrl, email: cfg.email, token: cfg.token });
-const meta = { connected: false, mock: cfg.mock, liveReflect: cfg.mock && !cfg.mockAuto, site: siteName, jql: cfg.jql, me: cfg.mock ? "Demo User" : "…", writeBack: cfg.writeBack, pollSec: cfg.pollSec };
+const TICKETS_DIR = path.join(REPO_ROOT, "tickets");
+const RUNS_ROOT = path.join(__dirname, "runs");
+const HOOK = path.join(__dirname, "hooks", "scope-guard.mjs");
 
-// ---------- write-back hooks ----------
-async function onStart(t, a) {
-  if (cfg.mock || !cfg.writeBack || t.source !== "jira" || !jira) return;
-  try {
-    await jira.comment(t.key, `🤖 Symphony agent ${a.id} started working on this ticket (workspace ${a.ws}). Auto-dispatched by the orchestrator.`);
-    const moved = await jira.transitionTo(t.key, cfg.statusInProgress);
-    sym.olog(moved ? "ok" : "w", moved ? `${t.key} → ${cfg.statusInProgress} in Jira · comment posted` : `${t.key}: comment posted (no "${cfg.statusInProgress}" transition available)`);
-  } catch (e) {
-    sym.olog("w", `${t.key}: write-back on start failed — ${e.message}`);
-  }
-}
-async function onComplete(t, a) {
-  if (cfg.mock || !cfg.writeBack || t.source !== "jira" || !jira) return;
-  try {
-    await jira.comment(t.key, `✅ Symphony agent ${a.id} finished — PR #${t.pr} opened, CI green (${a.tokens.toLocaleString()} tokens). Ready for review.`);
-    const moved = await jira.transitionTo(t.key, cfg.statusDone);
-    sym.olog(moved ? "ok" : "w", moved ? `${t.key} → ${cfg.statusDone} in Jira · PR #${t.pr} linked` : `${t.key}: PR comment posted (no "${cfg.statusDone}" transition available)`);
-  } catch (e) {
-    sym.olog("w", `${t.key}: write-back on complete failed — ${e.message}`);
-  }
-}
+/* ─────────────── orchestrator ─────────────── */
 
-const sym = new Symphony({ agents: cfg.agents, maxConc: cfg.maxConc, onStart, onComplete });
-sym.olog("i", `symphony orchestrator started · ${cfg.mock ? "MOCK mode" : "watching " + siteName + ".atlassian.net"}`);
-sym.olog("i", `max_concurrent_agents = ${cfg.maxConc} · poll every ${cfg.pollSec}s`);
+const orch = new Orchestrator({
+  agents: cfg.agents,
+  maxConc: cfg.maxConc,
+  maxRetries: cfg.maxRetries,
+  workspace: cfg.workspace,
+  runsRoot: RUNS_ROOT,
+  hookScript: HOOK,
+});
 
-// ---------- Jira polling ----------
-const seen = new Set();
-async function pollJira(dispatchNew = true) {
-  if (cfg.mock || !jira) return { count: 0 };
-  const issues = await jira.search(cfg.jql);
-  let dispatched = 0;
-  for (const raw of issues) {
-    const t = normalizeIssue(raw, cfg.baseUrl);
-    if (seen.has(t.key)) continue;
-    seen.add(t.key);
-    if (dispatchNew) { if (sym.addTicket({ ...t, source: "jira" })) dispatched++; }
-  }
-  return { count: issues.length, dispatched };
+const cliPath = resolveCli();
+orch.log("i", `Symphony orchestrator online · ${cfg.agents} agent slots · max ${cfg.maxConc} parallel`);
+orch.log(cliPath ? "ok" : "err",
+  cliPath ? `Claude Code CLI located — agents will run for real` : `Claude Code CLI NOT FOUND — agents cannot start`);
+orch.log("i", `workspace: ${cfg.workspace}`);
+
+/* ─────────────── ticket sources ─────────────── */
+
+const fileSource = new FileTicketSource({
+  dir: TICKETS_DIR,
+  onTicket: (t) => orch.addTicket(t),
+  onLog: (k, m) => orch.log(k, m),
+}).start();
+
+let jiraSource = null;
+if (JiraTicketSource.isConfigured(cfg.jira)) {
+  jiraSource = new JiraTicketSource({
+    ...cfg.jira,
+    onTicket: (t) => orch.addTicket(t),
+    onLog: (k, m) => orch.log(k, m),
+  });
+  jiraSource.start().catch((e) => orch.log("w", "Jira source failed to start: " + e.message));
+} else {
+  orch.log("i", "Jira not configured — file tickets only (set JIRA_* in .env to enable)");
 }
 
-async function startJira() {
-  try {
-    const me = await jira.myself();
-    meta.connected = true;
-    meta.me = me.displayName || me.emailAddress || "you";
-    sym.olog("ok", `connected to Jira as ${meta.me} · JQL: ${cfg.jql}`);
-    // seed "seen" with existing so we only react to NEW assignments (unless configured)
-    const first = await pollJira(cfg.dispatchExistingOnStart);
-    sym.olog("i", `initial poll: ${first.count} ticket(s) assigned to you${cfg.dispatchExistingOnStart ? ` · dispatched ${first.dispatched}` : " · watching for new ones"}`);
-    setInterval(() => { pollJira(true).catch((e) => sym.olog("w", "poll failed — " + e.message)); }, cfg.pollSec * 1000);
-  } catch (e) {
-    meta.connected = false;
-    sym.olog("w", "Jira connection failed — " + e.message);
-    console.error("[jira-symphony] Jira connection failed:", e.message);
-  }
-}
+// Move the ticket file to done/ when its task finishes, so disk and queue agree.
+orch.on("completed", ({ task }) => fileSource.complete(task.ticket, true));
+orch.on("failed", ({ task }) => fileSource.complete(task.ticket, false));
 
-// ---------- mock generator ----------
-const MOCK_TITLES = [
-  "Add biometric device check-in", "Build shift-scheduling module", "Leave approval workflow",
-  "Geo-fenced remote check-in", "Overtime & payroll export", "Slack absence alerts",
-  "Face-recognition kiosk mode", "Timesheet approvals for managers", "Bulk import employees (CSV)",
-];
-let mockN = 6;
-function startMock() {
-  meta.connected = true;
-  if (!cfg.mockAuto) { sym.olog("i", "live-reflect mode · board waits for tasks Claude pushes via /api/task"); return; }
-  const fire = () => {
-    const key = "KAN-" + mockN++;
-    const title = MOCK_TITLES[Math.floor(Math.random() * MOCK_TITLES.length)];
-    sym.addTicket({ key, title, labels: ["backend", "feature"], prio: 1 + Math.floor(Math.random() * 3), url: "#" + key, source: "mock" });
-  };
-  fire(); setTimeout(fire, 1200); setTimeout(fire, 2600);
-  setInterval(fire, 9000);
-}
+/* ─────────────── express ─────────────── */
 
-// ---------- engine tick ----------
-let last = Date.now();
-setInterval(() => { const now = Date.now(); let dt = now - last; last = now; if (dt > 500) dt = 500; sym.tick(dt); }, 150);
-
-// ---------- express + SSE ----------
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "public", "dashboard.html")));
-app.get("/api/health", (_req, res) => res.json({ ok: true, mock: cfg.mock, connected: meta.connected }));
-app.get("/api/state", (_req, res) => res.json(sym.getState(meta)));
+app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "public", "console.html")));
 
-app.get("/api/jira/test", async (_req, res) => {
-  if (cfg.mock || !jira) return res.json({ ok: false, mock: true, message: "Running in mock mode (no credentials)." });
-  try { const me = await jira.myself(); res.json({ ok: true, me: me.displayName, account: me.accountId }); }
-  catch (e) { res.status(400).json({ ok: false, message: e.message }); }
-});
+function meta() {
+  return {
+    cliFound: !!cliPath,
+    workspace: cfg.workspace,
+    apiPort: cfg.apiPort,
+    ticketsDir: TICKETS_DIR,
+    jira: jiraSource ? jiraSource.status() : { connected: false, configured: false },
+    replay: replayState.active ? { active: true, runId: replayState.runId, startedAt: replayState.startedAt } : { active: false },
+  };
+}
 
-app.post("/api/config", (req, res) => { if (req.body && req.body.maxConc != null) sym.setMaxConc(+req.body.maxConc); res.json({ ok: true, maxConc: sym.maxConc }); });
+app.get("/api/health", (_req, res) => res.json({ ok: true, cliFound: !!cliPath, running: orch.running }));
+app.get("/api/state", (_req, res) => res.json(orch.getState(meta())));
 
-app.post("/api/dispatch", (req, res) => {
-  const b = req.body || {};
-  const key = b.key || ("SIM-" + (100 + Math.floor(Math.random() * 900)));
-  const title = b.title || "Manual test task";
-  const ok = sym.addTicket({ key, title, labels: ["manual"], prio: 2, url: "#", source: "manual" });
-  res.json({ ok, key });
-});
-
-// ── live-reflect: Claude pushes the REAL task it is working on ──
-app.post("/api/task", (req, res) => { const b = req.body || {}; const key = sym.addLiveTask({ title: b.title, key: b.key, labels: b.labels }); res.json({ ok: true, key }); });
-app.post("/api/task/:key/note", (req, res) => { const ok = sym.noteTask(req.params.key, (req.body && req.body.message) || "…"); res.json({ ok }); });
-app.post("/api/task/:key/done", (req, res) => { const ok = sym.completeLiveTask(req.params.key, req.body || {}); res.json({ ok }); });
-
-app.post("/api/sync", async (_req, res) => {
-  if (cfg.mock) return res.json({ ok: true, mock: true, dispatched: 0 });
-  try { const r = await pollJira(true); sym.olog("i", `manual sync · ${r.dispatched} new ticket(s) dispatched`); res.json({ ok: true, ...r }); }
-  catch (e) { res.status(400).json({ ok: false, message: e.message }); }
-});
-
-// SSE live stream
+/* SSE — the same transport the previous console used, kept because it already worked. */
 const clients = new Set();
 app.get("/api/stream", (req, res) => {
-  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
-  res.write(`data: ${JSON.stringify(sym.getState(meta))}\n\n`);
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.write(`data: ${JSON.stringify(orch.getState(meta()))}\n\n`);
   clients.add(res);
   req.on("close", () => clients.delete(res));
 });
+
+let dirty = true;
+orch.on("change", () => { dirty = true; });
+orch.on("event", () => { dirty = true; });
 setInterval(() => {
-  if (!clients.size) return;
-  const payload = `data: ${JSON.stringify(sym.getState(meta))}\n\n`;
+  if (!clients.size || !dirty) return;
+  dirty = false;
+  const payload = `data: ${JSON.stringify(orch.getState(meta()))}\n\n`;
   for (const c of clients) { try { c.write(payload); } catch { clients.delete(c); } }
-}, 300);
+}, 250);
+// Heartbeat so proxies and idle tabs keep the stream open.
+setInterval(() => { for (const c of clients) { try { c.write(": ping\n\n"); } catch { clients.delete(c); } } }, 15000);
+
+/* ─────────────── controls ─────────────── */
+
+app.post("/api/config", (req, res) => {
+  if (req.body?.maxConc != null) orch.setMaxConc(+req.body.maxConc);
+  res.json({ ok: true, maxConc: orch.maxConc });
+});
+
+app.post("/api/control", (req, res) => {
+  const action = req.body?.action;
+  if (action === "start") orch.start();
+  else if (action === "stop") orch.stop();
+  else return res.status(400).json({ ok: false, message: "action must be start or stop" });
+  res.json({ ok: true, running: orch.running });
+});
+
+app.post("/api/task/:id/retry", (req, res) => {
+  const ok = orch.retry(req.params.id);
+  res.json({ ok });
+});
+
+/**
+ * Create demo tickets.
+ *
+ * This writes JSON FILES into tickets/inbox/ and returns. It does not enqueue anything and it
+ * does not talk to the orchestrator — the watcher discovers them independently, exactly as it
+ * would for a ticket you created by hand in a text editor. That distinction is the whole point
+ * of the demo, so the endpoint deliberately keeps it.
+ */
+app.post("/api/demo/tickets", (req, res) => {
+  const n = Math.max(1, Math.min(DEMO_TICKETS.length, +(req.body?.count ?? 3)));
+  const only = req.body?.ids;
+  const chosen = Array.isArray(only) && only.length
+    ? DEMO_TICKETS.filter((t) => only.map(String).includes(String(t.id)))
+    : DEMO_TICKETS.slice(0, n);
+  const written = fileSource.seed(chosen);
+  orch.log("i", `${written.length} ticket file(s) written to tickets/inbox — waiting for the watcher to find them`);
+  res.json({ ok: true, written });
+});
+
+/** Full demo reset: stop agents, clear state, clear tickets, revert agent-written code. */
+app.post("/api/demo/reset", async (req, res) => {
+  orch.reset();
+  fileSource.clear();
+  const revert = req.body?.revertCode !== false;
+  let reverted = null;
+  if (revert) {
+    try { reverted = await revertWorkspace(); } catch (e) { reverted = { ok: false, error: e.message }; }
+  }
+  orch.log("ok", "demo reset — queue cleared" + (revert ? ", agent code reverted" : ""));
+  res.json({ ok: true, reverted });
+});
+
+app.get("/api/runs", (_req, res) => {
+  let runs = [];
+  try {
+    runs = fs.readdirSync(RUNS_ROOT).filter((d) => d.startsWith("run-")).sort().reverse()
+      .map((d) => {
+        const dir = path.join(RUNS_ROOT, d);
+        const files = fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl") && !f.includes("denials"));
+        return { runId: d, agents: files.length, bytes: files.reduce((s, f) => s + fs.statSync(path.join(dir, f)).size, 0) };
+      })
+      .filter((r) => r.agents > 0);
+  } catch { /* no runs yet */ }
+  res.json({ runs });
+});
+
+/* ─────────────── replay (stage safety net) ─────────────── */
+
+const replayState = { active: false, runId: null, startedAt: null, cancel: null };
+
+app.post("/api/replay/start", async (req, res) => {
+  const runId = req.body?.runId;
+  const speed = Math.max(0.25, Math.min(20, +(req.body?.speed || 2)));
+  if (!runId) return res.status(400).json({ ok: false, message: "runId required" });
+  const dir = path.join(RUNS_ROOT, runId);
+  if (!fs.existsSync(dir)) return res.status(404).json({ ok: false, message: "no such run" });
+
+  const { startReplay } = await import("./lib/replay.js");
+  orch.reset();
+  replayState.active = true;
+  replayState.runId = runId;
+  replayState.startedAt = Date.now();
+  replayState.cancel = startReplay({
+    dir, orch, speed,
+    onDone: () => { replayState.active = false; replayState.cancel = null; orch.log("i", `replay of ${runId} finished`); },
+  });
+  orch.log("w", `REPLAY MODE — replaying recorded run ${runId} at ${speed}x. This is a real transcript, not live.`);
+  res.json({ ok: true, runId, speed });
+});
+
+app.post("/api/replay/stop", (_req, res) => {
+  replayState.cancel?.();
+  replayState.active = false;
+  replayState.cancel = null;
+  orch.log("i", "replay stopped");
+  res.json({ ok: true });
+});
+
+/* ─────────────── helpers ─────────────── */
+
+/** Revert agent-written code with git, so a rehearsal can be repeated cleanly. */
+function revertWorkspace() {
+  return new Promise((resolve) => {
+    execFile("git", ["-C", REPO_ROOT, "checkout", "--", "attendance-api"], (err1) => {
+      execFile("git", ["-C", REPO_ROOT, "clean", "-fd", "attendance-api/routes", "attendance-api/tests", "attendance-api/docs"], (err2, stdout) => {
+        resolve({
+          ok: !err2,
+          checkout: err1 ? err1.message.split("\n")[0] : "ok",
+          removed: (stdout || "").trim().split("\n").filter(Boolean),
+        });
+      });
+    });
+  });
+}
 
 app.listen(cfg.port, () => {
-  console.log(`\n  Jira · Symphony running →  http://localhost:${cfg.port}`);
-  console.log(`  mode: ${cfg.mock ? "MOCK (no credentials)" : "LIVE (" + siteName + ".atlassian.net)"}\n`);
-  if (cfg.mock) startMock(); else startJira();
+  console.log(`\n  Symphony Operations Console  →  http://localhost:${cfg.port}`);
+  console.log(`  workspace : ${cfg.workspace}`);
+  console.log(`  tickets   : ${TICKETS_DIR}\\inbox`);
+  console.log(`  agents    : ${cfg.agents} slots, max ${cfg.maxConc} parallel`);
+  if (!cliPath) console.log(`\n  ⚠ Claude Code CLI not found — agents cannot run.\n`);
+  console.log("");
 });
