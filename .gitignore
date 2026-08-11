@@ -7,3 +7,12 @@ runs/
 tickets/inbox/
 tickets/active/
 tickets/done/
+
+# Agent output — regenerated live every demo run, never committed.
+# Only the hand-written baseline (health.js, store.test.js) is tracked, so
+# `git clean` during a demo reset removes exactly what the agents produced.
+attendance-api/routes/*
+!attendance-api/routes/health.js
+attendance-api/tests/*
+!attendance-api/tests/store.test.js
+attendance-api/docs/
