@@ -269,6 +269,28 @@ Auth is inherited from your Claude Code subscription login (`~/.claude/.credenti
 `public/dashboard.html` (the old simulated board) is retired; the state shape it expects no
 longer exists.
 
+## What is automatic after a PR merge, and what is not
+
+| | Automatic? |
+|---|---|
+| GitHub Pages redeploys | ✅ every green merge to main |
+| **This machine's checkout updates** | ❌ **nothing pulls — `git pull` or `node scripts/sync-local.mjs`** |
+| A pulled `routes/*.js` goes live | ✅ the API watcher mounts it within a second, no restart |
+| A pulled `index.html` shows | ✅ refresh the browser |
+| A pulled `attendance-api/lib/` or `data/` | ❌ restart the API — ESM caches transitive imports |
+| A pulled `jira-symphony/` | ❌ restart the console |
+
+Note the asymmetry: a ticket created **here** in `merge`/`both` mode updates the local app
+immediately, because the orchestrator merges into this working tree itself. A PR merged **in the
+GitHub UI** exists only on `origin` until someone fetches it.
+
+```bash
+node scripts/sync-local.mjs            # pull once, and say what needs restarting
+node scripts/sync-local.mjs --watch    # keep polling; pull whenever main moves
+```
+
+It refuses to pull over uncommitted work.
+
 ## Gotchas worth knowing
 
 1. **Nested sessions are refused.** Claude Code will not start inside another Claude Code
