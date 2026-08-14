@@ -312,7 +312,30 @@ app.post("/api/tickets", async (req, res) => {
 });
 
 const ROLE_LABEL = { frontend: "UI Agent", backend: "Backend Agent", testing: "Test Agent", docs: "Docs Agent" };
-let nextTicketId = 201;
+
+/**
+ * Ticket ids must not restart at 201 on every server restart.
+ *
+ * They did, which meant a second session produced another ATT-201 and delivery force-pushed
+ * sym/att-201 over the previous ticket's branch — silently destroying an earlier agent's work.
+ * Seed from the highest id already visible on disk or in a branch name.
+ */
+function highestExistingTicketId() {
+  let max = 200;
+  const consider = (s) => {
+    const m = String(s).match(/(\d{3,})/);
+    if (m) max = Math.max(max, Number(m[1]));
+  };
+  for (const sub of ["inbox", "active", "done"]) {
+    try { for (const f of fs.readdirSync(path.join(TICKETS_DIR, sub))) consider(f); } catch { /* absent */ }
+  }
+  try {
+    const heads = path.join(REPO_ROOT, ".git", "refs", "heads", "sym");
+    for (const f of fs.readdirSync(heads)) consider(f);
+  } catch { /* no ticket branches yet */ }
+  return max + 1;
+}
+let nextTicketId = highestExistingTicketId();
 function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
 /** Full demo reset: stop agents, clear state, clear tickets, revert agent-written code. */

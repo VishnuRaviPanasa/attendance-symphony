@@ -159,5 +159,11 @@ export function heuristic(description) {
 }
 
 export function slugify(s) {
-  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "task";
+  const full = String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (full.length <= 28) return full || "task";
+  // Cut back to a word boundary rather than mid-word: "add-leave-balance-endpoi" is a worse
+  // filename than "add-leave-balance", and it is the one a reviewer sees in the diff.
+  const cut = full.slice(0, 28);
+  const at = cut.lastIndexOf("-");
+  return (at > 8 ? cut.slice(0, at) : cut).replace(/-$/, "") || "task";
 }
