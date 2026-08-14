@@ -1,0 +1,73 @@
+# Continuous integration.
+#
+# The important trigger is `sym/**`: those are the branches the Symphony orchestrator pushes
+# after an agent's work passes its local verification gate. Running here re-checks that work on
+# a clean machine, which catches the classic failure the local gate structurally cannot — an
+# agent that depends on a file it never committed. That file exists in its worktree, so the
+# orchestrator's gate goes green; it is absent from the branch, so this goes red.
+name: CI
+
+on:
+  push:
+    branches: [main, "sym/**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  orchestrator:
+    name: Symphony orchestrator
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jira-symphony
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # workspace.js creates git worktrees from HEAD, and its tests need real history.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: jira-symphony/package-lock.json
+      - run: npm ci
+      # The worktree tests shell out to git, which refuses to commit without an identity.
+      - name: Configure git identity for worktree tests
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+      - run: npm test
+
+  api:
+    name: Attendance API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: attendance-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: attendance-api/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  app:
+    name: Attendance app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # index.html and app.html are byte-identical apart from an HTML wrapper, with no build
+      # step — so they are one slip away from silently diverging.
+      - name: index.html and app.html are in sync
+        run: node scripts/sync-app-html.js --check
+
+      # The same gate the orchestrator applies to a UI agent's work.
+      - name: App is structurally intact
+        run: node scripts/check-app.mjs
