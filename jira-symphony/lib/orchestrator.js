@@ -10,6 +10,7 @@
 import { EventEmitter } from "node:events";
 import path from "node:path";
 import fs from "node:fs";
+import { execFile } from "node:child_process";
 
 import { runAgent } from "./agent-runner.js";
 import { ProgressTracker } from "./progress.js";
@@ -324,11 +325,21 @@ export class Orchestrator extends EventEmitter {
     // pushed and turned into a PR link when a remote is configured.
     if (res.ok && task.worktree && this.delivery !== "off") {
       try {
+        // Regenerate derived files IN THE WORKTREE before committing. app.html is produced from
+        // index.html and has no build step, so a UI ticket that only commits index.html leaves
+        // the branch internally inconsistent — CI caught exactly that on ATT-206.
+        const extraPaths = [];
+        if (task.postSync) {
+          const synced = await this._syncDerived(task.worktree.dir, agent.id);
+          extraPaths.push(...synced);
+        }
+
         const d = await deliver({
           repoRoot: this.repoRoot,
           worktreeDir: task.worktree.dir,
           task,
           push: this.delivery === "pr" || this.delivery === "both",
+          extraPaths,
           onLog: (k, m) => this.log(k, m, agent.id),
         });
         task.delivery = d;
@@ -420,6 +431,26 @@ export class Orchestrator extends EventEmitter {
       this.emit("change");
     }, this._slotHoldMs);
     this._pump();
+  }
+
+  /**
+   * Run the repo's derived-file generator inside a worktree.
+   * @returns {Promise<string[]>} repo-relative paths it produced, to add to the commit
+   */
+  _syncDerived(worktreeDir, agentId) {
+    return new Promise((resolve) => {
+      const script = path.join(worktreeDir, "scripts", "sync-app-html.js");
+      if (!fs.existsSync(script)) return resolve([]);
+      execFile(process.execPath, [script], { cwd: worktreeDir }, (err, stdout) => {
+        if (err) {
+          this.log("w", `could not regenerate app.html in the sandbox — ${err.message.split("\n")[0]}`, agentId);
+          return resolve([]);
+        }
+        const wrote = String(stdout).split("\n").filter((l) => l.startsWith("wrote ")).map((l) => l.split(/\s+/)[1]);
+        if (wrote.length) this.log("ok", `regenerated ${wrote.join(", ")} in the sandbox`, agentId);
+        resolve(wrote);
+      });
+    });
   }
 
   /** Record which agent ran which ticket, so a recorded run can be replayed faithfully. */

@@ -37,7 +37,7 @@ export async function getRemote(repoRoot) {
  *
  * @returns {Promise<{ok, branch, commit, changed, pushed, prUrl, reason}>}
  */
-export async function deliver({ repoRoot, worktreeDir, task, push = false, onLog = () => {} }) {
+export async function deliver({ repoRoot, worktreeDir, task, push = false, extraPaths = [], onLog = () => {} }) {
   const branch = `sym/${String(task.key).toLowerCase()}`;
   const out = { ok: false, branch, commit: null, changed: [], pushed: false, prUrl: null, reason: null };
 
@@ -47,7 +47,11 @@ export async function deliver({ repoRoot, worktreeDir, task, push = false, onLog
 
   // -f is required: agent output under routes/, tests/ and docs/ is gitignored so that a demo
   // reset can clear it. Ignored-but-intended files still belong in the ticket's commit.
-  const paths = (task.scope || []).map((s) => toRepoRel(task, s));
+  //
+  // extraPaths carries files the ticket did not name but the change requires — notably app.html,
+  // which is generated from index.html. Committing only the agent's scope left the branch with a
+  // modified index.html and a stale twin, and CI rejected it (correctly).
+  const paths = [...(task.scope || []).map((s) => toRepoRel(task, s)), ...extraPaths];
   if (paths.length) await git(worktreeDir, ["add", "-f", "--", ...paths]);
   else await git(worktreeDir, ["add", "-A"]);
 
