@@ -74,8 +74,10 @@ function checkBash(ti) {
 
   if (FORBIDDEN.test(cmd)) return block(`Bash blocked: command contains a forbidden operation.\n${cmd}`);
 
-  // Check every segment of a chained command, not just the first.
-  for (const seg of cmd.split(/&&|\|\||;|\|/)) {
+  // Check every segment of a chained command, not just the first — but split on operators
+  // OUTSIDE quotes only. `node -e "console.log(a); f()"` is one command, and splitting on the
+  // semicolon inside the script made the guard reject perfectly ordinary one-liners.
+  for (const seg of splitUnquoted(cmd)) {
     const s = seg.trim();
     if (!s) continue;
     const head = (s.split(/\s+/)[0] || "").replace(/^.*[\\/]/, "").toLowerCase();
@@ -108,6 +110,38 @@ function toRel(target) {
   const rel = path.relative(WORKSPACE, abs);
   if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
   return rel.split(path.sep).join("/");
+}
+
+/**
+ * Split a shell command on &&, ||, ; and | — ignoring any that appear inside quotes.
+ *
+ * A naive split rejected `node -e "console.log(JSON.stringify(x)); f()"`, because the
+ * semicolon inside the script looked like a command separator and `console.log(...)` looked
+ * like an unknown command head.
+ */
+function splitUnquoted(cmd) {
+  const parts = [];
+  let buf = "";
+  let quote = null;
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i];
+    if (quote) {
+      if (c === "\\" && quote !== "'") { buf += c + (cmd[++i] ?? ""); continue; }
+      if (c === quote) quote = null;
+      buf += c;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === "`") { quote = c; buf += c; continue; }
+    if (c === ";" || c === "|" || c === "&") {
+      // consume a doubled operator (&& / ||) so the second char is not treated as a segment
+      if ((c === "|" || c === "&") && cmd[i + 1] === c) i++;
+      parts.push(buf); buf = "";
+      continue;
+    }
+    buf += c;
+  }
+  parts.push(buf);
+  return parts.filter((s) => s.trim());
 }
 
 // NB: function declaration, not a const arrow — main() runs above this point and a

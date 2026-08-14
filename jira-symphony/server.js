@@ -270,9 +270,17 @@ app.post("/api/tickets", async (req, res) => {
   orch.log("i", `New request received — triaging: "${truncate(description, 70)}"`);
   let t;
   try {
-    t = forced ? { ...heuristic(description), kind: forced, via: "operator" } : await triage(description);
+    // Triage runs even when the operator has picked the agent: only the ROUTING is being
+    // overridden, and the model still produces a far better title, slug and acceptance
+    // criteria than keyword matching. Skipping it entirely gave filenames like
+    // `routes/add-an-endpoint-that-ret.js`, cut out of the raw description.
+    t = await triage(description);
+    if (forced && forced !== t.kind) {
+      orch.log("i", `operator routed this to ${ROLE_LABEL[forced] || forced} (Symphony suggested ${ROLE_LABEL[t.kind] || t.kind})`);
+      t = { ...t, kind: forced, via: "operator" };
+    }
   } catch (e) {
-    t = { ...heuristic(description), via: "keywords" };
+    t = { ...heuristic(description), kind: forced || heuristic(description).kind, via: "keywords" };
     orch.log("w", `triage failed (${e.message}) — routed by keyword`);
   }
 
