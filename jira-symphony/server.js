@@ -22,6 +22,7 @@ import { resolveCli } from "./lib/agent-runner.js";
 import { DEMO_TICKETS, FAILURE_TICKET } from "./demo/tickets.js";
 import { triage, heuristic, targetFor } from "./lib/triage.js";
 import { pruneAll } from "./lib/workspace.js";
+import { pruneBranches, getRemote } from "./lib/delivery.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -59,13 +60,18 @@ const orch = new Orchestrator({
   // One git worktree per ticket — agents cannot see or overwrite each other's edits.
   isolate: String(process.env.ISOLATE_WORKSPACES || "true") === "true",
   repoRoot: REPO_ROOT,
+  // merge = integrate into the working tree · pr = leave it on a branch for review
+  // both  = push a branch AND merge (auto-merge on green) · off = no branch at all
+  delivery: process.env.DELIVERY_MODE || "merge",
 });
 
+const REMOTE_URL = await getRemote(REPO_ROOT);
 const cliPath = resolveCli();
 orch.log("i", `Symphony orchestrator online · ${cfg.agents} agent slots · max ${cfg.maxConc} parallel`);
 orch.log(cliPath ? "ok" : "err",
   cliPath ? `Claude Code CLI located — agents will run for real` : `Claude Code CLI NOT FOUND — agents cannot start`);
 orch.log("i", `workspace: ${cfg.workspace}`);
+orch.log("i", `delivery: ${orch.delivery}` + (REMOTE_URL ? ` · remote ${REMOTE_URL}` : " · no git remote — branches stay local"));
 
 /* ─────────────── ticket sources ─────────────── */
 
@@ -158,6 +164,8 @@ function meta() {
     workspace: cfg.workspace,
     apiPort: cfg.apiPort,
     ticketsDir: TICKETS_DIR,
+    delivery: orch.delivery,
+    remote: REMOTE_URL,
     jira: jiraSource ? jiraSource.status() : { connected: false, configured: false },
     replay: replayState.active ? { active: true, runId: replayState.runId, startedAt: replayState.startedAt } : { active: false },
   };
@@ -304,6 +312,8 @@ app.post("/api/demo/reset", async (req, res) => {
   orch.reset();
   fileSource.clear();
   await pruneAll(REPO_ROOT);
+  const dropped = await pruneBranches(REPO_ROOT);
+  if (dropped.length) orch.log("i", `removed ${dropped.length} ticket branch(es)`);
   const revert = req.body?.revertCode !== false;
   let reverted = null;
   if (revert) {

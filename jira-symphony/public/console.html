@@ -147,6 +147,10 @@ body{font-family:var(--font);background:var(--bg-grad);color:var(--ink);min-heig
 .meta b{color:var(--ink-2);font-weight:700}
 .meta .ok{color:var(--done);font-weight:700} .meta .bad{color:var(--failed);font-weight:700}
 .files{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:7px;word-break:break-all}
+.verif{font-size:11.5px;margin-top:8px;font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.verif.ok{color:var(--done)} .verif.bad{color:var(--failed)}
+.deliv{font-size:11.5px;margin-top:5px;font-family:var(--mono);color:var(--muted)}
+.deliv a{color:var(--accent);font-weight:700}
 .errline{font-size:11.5px;color:var(--failed);margin-top:8px;font-family:var(--mono);line-height:1.4}
 .idlenote{font-size:12.5px;color:var(--muted-2);text-align:center;padding:26px 0;font-style:italic}
 .retry{margin-top:10px}
@@ -378,7 +382,7 @@ function render(s){
 
   $("#sub").textContent = (s.cliFound?"":"⚠ Claude Code CLI not found — ")
     + "workspace " + (s.workspace||"").split(/[\\/]/).pop()
-    + (s.jira&&s.jira.connected?" · Jira connected as "+s.jira.me:"") ;
+    + (s.delivery?" · delivery "+s.delivery:"") + (s.remote?" → "+String(s.remote).replace(/^.*[/:]/,"")+"":" · no remote") + (s.jira&&s.jira.connected?" · Jira "+s.jira.me:"");
 
   const pill=$("#statuspill");
   pill.className="statuspill"+(s.running?"":" stopped");
@@ -514,6 +518,8 @@ function agentCard(a,s){
     <div class="act"><span class="lbl">Now:</span><span>${esc(p?p.activity:"…")}</span></div>
 
     ${p&&p.filesWritten&&p.filesWritten.length?`<div class="files">✎ ${p.filesWritten.map(f=>esc(shortFile(f))).join("  ·  ")}</div>`:""}
+    ${task&&task.verification?`<div class="verif ${task.verification.ok?"ok":"bad"}">${task.verification.ok?"✓ verified":"✕ verification failed"} · ${esc(task.verification.summary||"")}</div>`:""}
+    ${task&&task.delivery&&task.delivery.branch&&task.delivery.commit?`<div class="deliv">⎇ ${esc(task.delivery.branch)} @ ${esc(task.delivery.commit)}${task.delivery.prUrl?` · <a href="${esc(task.delivery.prUrl)}" target="_blank" rel="noopener">open PR</a>`:""}</div>`:""}
     ${st==="failed"&&task&&task.error?`<div class="errline">✕ ${esc(task.error)}</div>`:""}
     ${st==="failed"&&task?`<button class="btn ghost retry" data-retry="${esc(task.id)}">Retry task</button>`:""}
     ${st==="working"&&task?`<button class="btn ghost retry" data-kill="${esc(task.id)}" title="Kill this agent process to demonstrate failure handling">Kill agent</button>`:""}
@@ -551,7 +557,7 @@ function drawQueue(s){
           <span class="qt">${esc(t.title)}</span>
           <span class="qs ${t.state}">${esc(t.state)}</span>
         </div>
-        <div class="pipeline">${pipe}${t.waitingFor?`<span style="color:var(--warn)">waiting on ${esc(t.waitingFor)} · ${esc((t.exclusive||[]).join(", "))}</span>`:""}${t.agentId?`<span style="margin-left:auto;color:var(--muted)">${esc(t.agentId)}</span>`:""}${t.attempts>1?`<span style="color:var(--warn)">attempt ${t.attempts}</span>`:""}</div>
+        <div class="pipeline">${pipe}${t.waitingFor?`<span style="color:var(--warn)">waiting on ${esc(t.waitingFor)} · ${esc((t.exclusive||[]).join(", "))}</span>`:""}${t.agentId?`<span style="margin-left:auto;color:var(--muted)">${esc(t.agentId)}</span>`:""}${t.attempts>1?`<span style="color:var(--warn)">attempt ${t.attempts}</span>`:""}${t.verification?`<span style="color:${t.verification.ok?"var(--done)":"var(--failed)"}">${t.verification.ok?"verified":"unverified"}</span>`:""}${t.delivery&&t.delivery.branch&&t.delivery.commit?`<span style="color:var(--muted)">${esc(t.delivery.branch)}</span>`:""}</div>
       </div>
     </div>`;
   }).join("");

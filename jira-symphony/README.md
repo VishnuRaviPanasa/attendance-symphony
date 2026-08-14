@@ -50,12 +50,44 @@ reports back."*
 | **Isolated workspace per ticket** | ✅ a real `git worktree` per ticket (`lib/workspace.js`) |
 | Dispatches an agent to each | ✅ one real `claude` process per ticket |
 | Parallelism with backpressure | ✅ concurrency cap; queued tickets wait for a slot |
-| Runs tests | ✅ |
+| **Runs tests** | ✅ the orchestrator runs them **itself**, in the agent's worktree — see below |
 | **Reports back to the tracker** | ✅ Jira comment + To Do → In Progress → Done (needs `JIRA_*` in `.env`) |
 | Claim states | ✅ queued → assigned → working → retry → released |
-| Proof of work | ⚠️ tokens, runtime, cost, files, tests — **no CI status** |
-| **Opens a Pull Request** | ❌ integrates straight into the working tree |
+| Proof of work | ✅ tokens, runtime, cost, files, verified test result, branch + commit |
+| **Opens a Pull Request** | ⚠️ branch + commit per ticket always; pushed with a PR link when a remote exists (`DELIVERY_MODE=pr`) |
 | Execution phase names | ❌ replaced with stages derived from real events (see below) |
+
+### Verification is independent
+
+Until recently a ticket was "completed" when the agent's process exited cleanly and emitted a
+result event — **the agent's account of its own work**. An agent that wrote a failing test still
+showed green.
+
+`lib/verify.js` now runs the suite itself, in the agent's worktree, after it finishes and before
+anything is merged:
+
+| Ticket kind | Gate |
+|---|---|
+| backend / testing / docs | the ticket's `verify` command, default `npm test` |
+| frontend | structural check — file complete, every inline script parses, no external resources |
+
+Red fails the ticket and the normal retry path takes over. `COMPLETED` now means *verified*.
+
+### Delivery
+
+Verified work is committed to its own branch (`sym/att-101`) with a message recording the
+request, the verification result and which agent did it. `DELIVERY_MODE` decides what happens
+next:
+
+| Mode | Behaviour |
+|---|---|
+| `merge` *(default)* | branch + commit, then merged into the working tree — fastest demo payoff |
+| `pr` | branch pushed, PR link produced, **working tree untouched** — closest to Symphony |
+| `both` | pushed *and* merged, i.e. auto-merge on green |
+| `off` | no branch at all |
+
+`pr` and `both` need a git remote; without one the branch is still created locally, so there is
+always a per-ticket artefact to inspect with `git show sym/att-101`.
 
 **One deliberate departure worth naming.** The free-text ticket box is *task production*, which
 is Spec Kit's half of the pipeline — the same document says *"Spec Kit produces tasks; Symphony

@@ -15,6 +15,8 @@ import { runAgent } from "./agent-runner.js";
 import { ProgressTracker } from "./progress.js";
 import { roleFor, ROLES } from "./prompts.js";
 import { createWorkspace, integrate } from "./workspace.js";
+import { verifyTask } from "./verify.js";
+import { deliver } from "./delivery.js";
 
 const SLOT_COLORS = ["#2dd4bf", "#60a5fa", "#c084fc", "#fbbf24", "#34d399", "#f472b6", "#38bdf8", "#a78bfa"];
 const MAX_EVENTS = 400;
@@ -35,12 +37,18 @@ export class Orchestrator extends EventEmitter {
     // Isolated worktree per ticket. Off in tests, where the stub runner never touches disk.
     isolate = false,
     repoRoot = null,
+    // off | merge | pr | both — what happens to verified work.
+    //   merge = integrate into the working tree (fast demo payoff)
+    //   pr    = branch pushed for review, working tree untouched (true Symphony)
+    //   both  = PR opened AND merged locally, i.e. auto-merge on green
+    delivery = "merge",
   } = {}) {
     super();
     this._runner = runner;
     this._slotHoldMs = slotHoldMs;
     this.isolate = isolate;
     this.repoRoot = repoRoot;
+    this.delivery = delivery;
     this.workspace = workspace;
     this.runsRoot = runsRoot;
     this.hookScript = hookScript;
@@ -289,10 +297,56 @@ export class Orchestrator extends EventEmitter {
     agent.handle = null;
     this.totalCostUsd += res.resultEvent?.costUsd || 0;
 
+    // ── VERIFY ────────────────────────────────────────────────────────────────────────────
+    // Everything above this point is the agent's account of its own work. Run the suite in its
+    // worktree before believing any of it: an agent that ships a failing test must not show
+    // COMPLETED. Red here fails the ticket and the normal retry path takes over.
+    if (res.ok && task.worktree) {
+      const wsDir = task.workspaceRel ? path.join(task.worktree.dir, task.workspaceRel) : task.worktree.dir;
+      try {
+        const v = await verifyTask(task, wsDir, { onLog: (k, m) => this.log(k, m, agent.id) });
+        task.verification = v;
+        if (v.ok) {
+          this.log("ok", `${task.key} verified · ${v.summary}`, agent.id);
+        } else {
+          this.log("err", `${task.key} FAILED VERIFICATION · ${v.summary}`, agent.id);
+          if (v.output) for (const line of v.output.split("\n").slice(-4)) this.log("w", `  ${line}`, agent.id);
+          res = { ...res, ok: false, error: `verification failed: ${v.summary}` };
+        }
+      } catch (e) {
+        task.verification = { ok: false, summary: e.message };
+        res = { ...res, ok: false, error: `verification errored: ${e.message}` };
+      }
+    }
+
+    // ── DELIVER ───────────────────────────────────────────────────────────────────────────
+    // Verified work becomes a named branch and a commit — a reviewable artefact per ticket,
+    // pushed and turned into a PR link when a remote is configured.
+    if (res.ok && task.worktree && this.delivery !== "off") {
+      try {
+        const d = await deliver({
+          repoRoot: this.repoRoot,
+          worktreeDir: task.worktree.dir,
+          task,
+          push: this.delivery === "pr" || this.delivery === "both",
+          onLog: (k, m) => this.log(k, m, agent.id),
+        });
+        task.delivery = d;
+        if (!d.ok && d.reason) this.log("w", `${task.key}: ${d.reason}`, agent.id);
+      } catch (e) {
+        this.log("w", `${task.key}: delivery failed — ${e.message}`, agent.id);
+      }
+    }
+
+    // ── INTEGRATE ─────────────────────────────────────────────────────────────────────────
     // Bring the sandbox's work into the real tree before declaring success. A merge conflict
     // means another agent already changed the same lines — that is a genuine failure of this
     // ticket, not something to paper over by overwriting their work.
-    if (res.ok && task.worktree) {
+    //
+    // Skipped in "pr" mode: there, the branch IS the deliverable and a human merges it.
+    if (res.ok && task.worktree && this.delivery === "pr") {
+      this.log("i", `${task.key}: left on ${task.delivery?.branch} for review — working tree untouched`, agent.id);
+    } else if (res.ok && task.worktree) {
       try {
         const r = await integrate(this.repoRoot, task.worktree.dir, task, (k, m) => this.log(k, m, agent.id));
         task.integration = r;
@@ -318,6 +372,10 @@ export class Orchestrator extends EventEmitter {
       task.finishedAt = Date.now();
       task.result = {
         summary: t?.summary || "",
+        verified: task.verification?.ok ?? null,
+        verifySummary: task.verification?.summary || null,
+        branch: task.delivery?.branch || null,
+        prUrl: task.delivery?.prUrl || null,
         files: t?.filesWritten || [],
         tests: t?.tests || [],
         costUsd: t?.costUsd || 0,
@@ -467,6 +525,7 @@ export class Orchestrator extends EventEmitter {
         id: t.id, key: t.key, title: t.title, kind: t.kind, roleLabel: t.roleLabel,
         priority: t.priority, state: t.state, agentId: t.agentId, attempts: t.attempts,
         scope: t.scope, error: t.error, result: t.result, integration: t.integration || null,
+        verification: t.verification || null, delivery: t.delivery || null,
         exclusive: t.exclusive, waitingFor: t.waitingFor || null, workspace: t.workspace,
         queuedAt: t.queuedAt, startedAt: t.startedAt, finishedAt: t.finishedAt,
       })),
