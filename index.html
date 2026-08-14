@@ -1069,26 +1069,27 @@ function drawTrend(host,wk){
   const iw=W-pl-pr, ih=H-pt-pb;
   const maxV=Math.max(...days.map(d=>d.counts.present+d.counts.remote),5);
   const yMax=Math.ceil(maxV/5)*5;
-  const x=i=>pl+(iw/(days.length-1))*i;
+  const slot=iw/days.length;
+  const bw=Math.max(4,Math.floor(slot*0.65));
+  const bx=i=>pl+slot*i+(slot-bw)/2;
   const y=v=>pt+ih-(v/yMax)*ih;
   let grid="",lbls="";
   for(let g=0;g<=yMax;g+=Math.max(1,Math.round(yMax/4))){grid+=`<line class="grid-line" x1="${pl}" y1="${y(g)}" x2="${W-pr}" y2="${y(g)}"/>`;lbls+=`<text class="axis-lbl" x="${pl-8}" y="${y(g)+3}" text-anchor="end">${g}</text>`;}
   const vals=days.map(d=>d.counts.present+d.counts.remote);
-  const pts=days.map((d,i)=>[x(i),y(vals[i])]);
-  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
-  const area=line+` L${x(days.length-1)} ${y(0)} L${x(0)} ${y(0)} Z`;
-  let xl="",dots="";
-  days.forEach((d,i)=>{xl+=`<text class="axis-lbl" x="${x(i)}" y="${H-9}" text-anchor="middle">${d.label}</text>`;
-    dots+=`<circle cx="${x(i)}" cy="${y(vals[i])}" r="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="2.4" data-i="${i}" class="tp"/>`;});
+  let bars="",xl="";
+  days.forEach((d,i)=>{
+    const bh=Math.max(2,(vals[i]/yMax)*ih);
+    bars+=`<rect x="${bx(i).toFixed(1)}" y="${y(vals[i]).toFixed(1)}" width="${bw}" height="${bh.toFixed(1)}" rx="3" fill="var(--accent)" data-i="${i}" class="tp" style="cursor:pointer"/>`;
+    xl+=`<text class="axis-lbl" x="${(bx(i)+bw/2).toFixed(1)}" y="${H-9}" text-anchor="middle">${d.label}</text>`;
+  });
   host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" style="overflow:visible">
-    <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity="0.22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
-    ${grid}${lbls}<path d="${area}" fill="url(#tg)"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>${dots}${xl}
+    ${grid}${lbls}${bars}${xl}
   </svg>`;
-  $$(".tp",host).forEach(dot=>{
-    dot.addEventListener("mousemove",e=>{const d=days[+dot.dataset.i];
+  $$(".tp",host).forEach(bar=>{
+    bar.addEventListener("mousemove",e=>{const d=days[+bar.dataset.i];
       showTip(`<b>${d.date.toLocaleDateString(undefined,{weekday:"long",month:"short",day:"numeric"})}</b><br>${d.weekend?"Weekend":`Present ${d.counts.present} · Remote ${d.counts.remote} · Late ${d.counts.late}`}`,e.clientX,e.clientY);
-      dot.setAttribute("r","6");});
-    dot.addEventListener("mouseleave",()=>{hideTip();dot.setAttribute("r","4");});
+      bar.setAttribute("opacity","0.75");});
+    bar.addEventListener("mouseleave",()=>{hideTip();bar.setAttribute("opacity","1");});
   });
 }
 function drawDonut(host,counts){
