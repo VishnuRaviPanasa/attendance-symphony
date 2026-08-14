@@ -64,7 +64,12 @@ jobs:
           } > site/BUILD.txt
           ls -la site
 
+      # enablement turns Pages on automatically the first time, so the repository does not
+      # need a manual visit to Settings → Pages. It requires the workflow's `pages: write`
+      # permission, which is granted above.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
