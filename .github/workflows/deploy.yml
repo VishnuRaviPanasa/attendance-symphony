@@ -6,7 +6,10 @@
 # leaves index.html malformed never reaches the live site — the same gate the orchestrator
 # applies to an agent's work, applied once more before the public sees it.
 #
-# One-time setup: repository Settings → Pages → Build and deployment → Source: GitHub Actions.
+# ONE-TIME SETUP (required — a workflow cannot do this for you):
+#   Settings → Pages → Build and deployment → Source: **GitHub Actions**
+# Until that is set, the `configure-pages` step fails with "Get Pages site failed" and nothing
+# is published. Afterwards every green merge deploys automatically.
 name: Deploy
 
 on:
@@ -64,12 +67,11 @@ jobs:
           } > site/BUILD.txt
           ls -la site
 
-      # enablement turns Pages on automatically the first time, so the repository does not
-      # need a manual visit to Settings → Pages. It requires the workflow's `pages: write`
-      # permission, which is granted above.
+      # NB: `enablement: true` was tried here and fails — turning Pages on requires repo-admin
+      # rights that the default GITHUB_TOKEN does not have. Pages must be switched on once by
+      # hand: Settings → Pages → Build and deployment → Source: GitHub Actions. Everything
+      # after that is automatic.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
