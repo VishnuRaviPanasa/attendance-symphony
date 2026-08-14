@@ -81,10 +81,19 @@ next:
 
 | Mode | Behaviour |
 |---|---|
-| `merge` *(default)* | branch + commit, then merged into the working tree — fastest demo payoff |
+| `merge` *(default)* | branch + commit, then merged into the working tree |
 | `pr` | branch pushed, PR link produced, **working tree untouched** — closest to Symphony |
-| `both` | pushed *and* merged, i.e. auto-merge on green |
+| `both` | pushed *and* merged, i.e. auto-merge on green — **use this for a demo** |
 | `off` | no branch at all |
+
+> **`pr` mode does not change the app.** That is the point of it — the work waits on a branch for
+> a human to merge. It is also the single most confusing thing here if you forget you set it: the
+> console says COMPLETED, verification says PASS, and the application looks untouched because it
+> *is* untouched. The console now says so on every completed card, and the header carries
+> `delivery pr (work stays on branches — the app does NOT change)`.
+>
+> For a manager demo use `both`: the branch and PR still exist as the audit trail, and the app
+> visibly changes when you refresh.
 
 `pr` and `both` need a git remote; without one the branch is still created locally, so there is
 always a per-ticket artefact to inspect with `git show sym/att-101`.
