@@ -425,6 +425,7 @@ app.listen(cfg.port, () => {
   console.log(`  workspace : ${cfg.workspace}`);
   console.log(`  tickets   : ${TICKETS_DIR}\\inbox`);
   console.log(`  agents    : ${cfg.agents} slots, max ${cfg.maxConc} parallel`);
+  console.log(`  the app   : http://localhost:${cfg.apiPort}/app`);
   if (!cliPath) console.log(`\n  ⚠ Claude Code CLI not found — agents cannot run.\n`);
   console.log("");
 });
