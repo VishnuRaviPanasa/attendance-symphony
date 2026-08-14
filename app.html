@@ -739,7 +739,29 @@ function deptRates(){
 
    Everything degrades quietly: with the API stopped the app behaves exactly as it always did,
    entirely on localStorage. */
-const API_BASE = (()=>{ try{ return localStorage.getItem("attendpro.apiBase")||"http://localhost:4400"; }catch(e){ return "http://localhost:4400"; } })();
+/* Where the attendance API lives. Resolved at load so the same file works from disk, from
+   localhost, and from a deployed host without being rebuilt:
+     1. ?api=https://…            — override for a demo, wins over everything
+     2. localStorage              — remembered once set
+     3. same origin               — when the API is served alongside the app (localhost:4400/app)
+     4. http://localhost:4400     — opened from file:// during development
+   On a static host such as GitHub Pages none of these resolve, the fetches fail, and the
+   Symphony section shows its "API not reachable" state. The rest of the app is unaffected —
+   it has always run entirely on localStorage. */
+const API_BASE = (()=>{
+  try{
+    const q=new URLSearchParams(location.search).get("api");
+    if(q){ try{ localStorage.setItem("attendpro.apiBase",q); }catch(e){} return q.replace(/\/+$/,""); }
+    const saved=localStorage.getItem("attendpro.apiBase");
+    if(saved) return saved.replace(/\/+$/,"");
+  }catch(e){}
+  if(location.protocol==="http:"||location.protocol==="https:"){
+    // Served over HTTP: assume the API is co-hosted unless we are clearly on a dev machine.
+    const local=/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+    return local && location.port!=="4400" ? "http://localhost:4400" : location.origin;
+  }
+  return "http://localhost:4400";
+})();
 const API = { up:false, endpoints:[], files:[], checkedAt:0, error:null };
 
 async function apiGet(path, ms=2500){

@@ -1,0 +1,81 @@
+# Deploy the attendance app to GitHub Pages.
+#
+# The last step of the pipeline: ticket → agent → verified → PR → merged → **deployed**.
+#
+# Deployment is gated on the tests. `deploy` needs `verify`, so a merge that breaks the suite or
+# leaves index.html malformed never reaches the live site — the same gate the orchestrator
+# applies to an agent's work, applied once more before the public sees it.
+#
+# One-time setup: repository Settings → Pages → Build and deployment → Source: GitHub Actions.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow one deployment at a time; let a newer commit supersede an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  verify:
+    name: Verify before shipping
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: index.html and app.html are in sync
+        run: node scripts/sync-app-html.js --check
+
+      - name: App is structurally intact
+        run: node scripts/check-app.mjs
+
+      - name: Attendance API tests
+        working-directory: attendance-api
+        run: npm ci && npm test
+
+  build:
+    name: Build site
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the published site
+        run: |
+          mkdir -p site
+          cp index.html site/index.html
+          cp spec-kit-vs-symphony.html site/symphony-vs-speckit.html
+          cp -r _shots site/_shots
+          # Pages serves Jekyll by default, which would ignore _shots (leading underscore).
+          touch site/.nojekyll
+          {
+            echo "Deployed from ${GITHUB_SHA} on $(date -u +'%Y-%m-%d %H:%M UTC')"
+          } > site/BUILD.txt
+          ls -la site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
