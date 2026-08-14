@@ -40,9 +40,9 @@ jobs:
       - name: App is structurally intact
         run: node scripts/check-app.mjs
 
-      - name: Attendance API tests
+      - name: Attendance API tests and route conflicts
         working-directory: attendance-api
-        run: npm ci && npm test
+        run: npm ci && npm run verify
 
   build:
     name: Build site

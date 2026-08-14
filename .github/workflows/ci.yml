@@ -53,6 +53,8 @@ jobs:
           cache-dependency-path: attendance-api/package-lock.json
       - run: npm ci
       - run: npm test
+      # Two route files claiming one URL: the loser becomes silent dead code.
+      - run: npm run check:routes
 
   app:
     name: Attendance app

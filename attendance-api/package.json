@@ -8,9 +8,13 @@
     "start": "node --watch-path=./lib --watch-path=./data server.js",
     "start:plain": "node server.js",
     "seed": "node scripts/seed.js",
-    "test": "node --test \"tests/**/*.test.js\""
+    "test": "node --test \"tests/**/*.test.js\"",
+    "check:routes": "node scripts/check-routes.mjs",
+    "verify": "npm test && npm run check:routes"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "express": "^4.19.2"
   }
