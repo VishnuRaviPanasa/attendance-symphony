@@ -6,7 +6,7 @@
   "description": "Symphony orchestrator: discovers tickets and runs real Claude Code agents in parallel, with a live operations console.",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test \"tests/**/*.test.js\"",
+    "test": "node --test",
     "run-one": "node scripts/run-one.mjs"
   },
   "engines": {
