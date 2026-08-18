@@ -28,23 +28,23 @@ svg:not([width]){width:1em;height:1em;flex:none}
   --font: "Segoe UI Variable","Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
   --mono: "Cascadia Code","JetBrains Mono","SF Mono",Consolas,"Liberation Mono",monospace;
 
-  --bg:        #eff6ff;
-  --bg-grad:   radial-gradient(1200px 600px at 78% -8%, #dbeafe 0%, rgba(219,234,254,0) 60%), var(--bg);
+  --bg:        #f0fdf4;
+  --bg-grad:   radial-gradient(1200px 600px at 78% -8%, #dcfce7 0%, rgba(220,252,231,0) 60%), var(--bg);
   --surface:   #ffffff;
-  --surface-2: #eff6ff;
-  --surface-3: #dbeafe;
-  --border:    #93c5fd;
-  --border-2:  #60a5fa;
-  --ink:       #0a1628;
-  --ink-2:     #1e3a5f;
-  --muted:     #3b6da0;
-  --muted-2:   #6090b8;
+  --surface-2: #f0fdf4;
+  --surface-3: #dcfce7;
+  --border:    #86efac;
+  --border-2:  #4ade80;
+  --ink:       #052e16;
+  --ink-2:     #14532d;
+  --muted:     #166534;
+  --muted-2:   #2f855a;
 
-  --accent:    #2563eb;
-  --accent-2:  #1d4ed8;
+  --accent:    #16a34a;
+  --accent-2:  #15803d;
   --accent-ink:#ffffff;
-  --accent-soft:#dbeafe;
-  --accent-glow: rgba(37,99,235,.18);
+  --accent-soft:#dcfce7;
+  --accent-glow: rgba(22,163,74,.18);
 
   /* status (always paired with icon + label) */
   --present:  #16a34a; --present-soft:#dcf3e3;
@@ -62,23 +62,23 @@ svg:not([width]){width:1em;height:1em;flex:none}
 /* ---- Design tokens : DARK ---- */
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:        #020c1a;
-    --bg-grad:   radial-gradient(1200px 620px at 80% -10%, #0a1e40 0%, rgba(10,30,64,0) 58%), var(--bg);
-    --surface:   #051221;
-    --surface-2: #041018;
-    --surface-3: #071828;
-    --border:    #1a3a6b;
-    --border-2:  #1e4d8f;
-    --ink:       #e0f0ff;
-    --ink-2:     #a8c8f0;
-    --muted:     #6090c0;
-    --muted-2:   #405870;
+    --bg:        #021a13;
+    --bg-grad:   radial-gradient(1200px 620px at 80% -10%, #064e3b 0%, rgba(6,78,59,0) 58%), var(--bg);
+    --surface:   #04231a;
+    --surface-2: #021a13;
+    --surface-3: #063728;
+    --border:    #0f5c43;
+    --border-2:  #127754;
+    --ink:       #e6f7f0;
+    --ink-2:     #a3e6d1;
+    --muted:     #52b793;
+    --muted-2:   #337e63;
 
-    --accent:    #60a5fa;
-    --accent-2:  #3b82f6;
-    --accent-ink:#020c1a;
-    --accent-soft: rgba(96,165,250,.14);
-    --accent-glow: rgba(96,165,250,.22);
+    --accent:    #34d399;
+    --accent-2:  #10b981;
+    --accent-ink:#021a13;
+    --accent-soft: rgba(52,211,153,.14);
+    --accent-glow: rgba(52,211,153,.22);
 
     --present:  #34d399; --present-soft: rgba(52,211,153,.15);
     --late:     #fbbf24; --late-soft: rgba(251,191,36,.15);
@@ -93,10 +93,10 @@ svg:not([width]){width:1em;height:1em;flex:none}
 }
 /* Explicit theme overrides (toggle wins over OS in both directions) */
 :root[data-theme="light"]{
-  --bg:#eff6ff;--bg-grad:radial-gradient(1200px 600px at 78% -8%, #dbeafe 0%, rgba(219,234,254,0) 60%), var(--bg);
-  --surface:#ffffff;--surface-2:#eff6ff;--surface-3:#dbeafe;--border:#93c5fd;--border-2:#60a5fa;
-  --ink:#0a1628;--ink-2:#1e3a5f;--muted:#3b6da0;--muted-2:#6090b8;
-  --accent:#2563eb;--accent-2:#1d4ed8;--accent-ink:#ffffff;--accent-soft:#dbeafe;--accent-glow:rgba(37,99,235,.18);
+  --bg:#f0fdf4;--bg-grad:radial-gradient(1200px 600px at 78% -8%, #dcfce7 0%, rgba(220,252,231,0) 60%), var(--bg);
+  --surface:#ffffff;--surface-2:#f0fdf4;--surface-3:#dcfce7;--border:#86efac;--border-2:#4ade80;
+  --ink:#052e16;--ink-2:#14532d;--muted:#166534;--muted-2:#2f855a;
+  --accent:#16a34a;--accent-2:#15803d;--accent-ink:#ffffff;--accent-soft:#dcfce7;--accent-glow:rgba(22,163,74,.18);
   --present:#16a34a;--present-soft:#dcf3e3;--late:#c2740a;--late-soft:#f7ecd6;--absent:#dc2626;--absent-soft:#fadddd;
   --leave:#7c3aed;--leave-soft:#ede9fe;--remote:#9333ea;--remote-soft:#efdcfb;
   --shadow-sm:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04);
@@ -104,10 +104,10 @@ svg:not([width]){width:1em;height:1em;flex:none}
   --shadow-lg:0 18px 48px rgba(15,23,42,.16),0 6px 16px rgba(15,23,42,.08);
 }
 :root[data-theme="dark"]{
-  --bg:#020c1a;--bg-grad:radial-gradient(1200px 620px at 80% -10%, #0a1e40 0%, rgba(10,30,64,0) 58%), var(--bg);
-  --surface:#051221;--surface-2:#041018;--surface-3:#071828;--border:#1a3a6b;--border-2:#1e4d8f;
-  --ink:#e0f0ff;--ink-2:#a8c8f0;--muted:#6090c0;--muted-2:#405870;
-  --accent:#60a5fa;--accent-2:#3b82f6;--accent-ink:#020c1a;--accent-soft:rgba(96,165,250,.14);--accent-glow:rgba(96,165,250,.22);
+  --bg:#021a13;--bg-grad:radial-gradient(1200px 620px at 80% -10%, #064e3b 0%, rgba(6,78,59,0) 58%), var(--bg);
+  --surface:#04231a;--surface-2:#021a13;--surface-3:#063728;--border:#0f5c43;--border-2:#127754;
+  --ink:#e6f7f0;--ink-2:#a3e6d1;--muted:#52b793;--muted-2:#337e63;
+  --accent:#34d399;--accent-2:#10b981;--accent-ink:#021a13;--accent-soft:rgba(52,211,153,.14);--accent-glow:rgba(52,211,153,.22);
   --present:#34d399;--present-soft:rgba(52,211,153,.15);--late:#fbbf24;--late-soft:rgba(251,191,36,.15);
   --absent:#f87171;--absent-soft:rgba(248,113,113,.15);--leave:#a78bfa;--leave-soft:rgba(167,139,250,.15);
   --remote:#e879f9;--remote-soft:rgba(232,121,249,.15);
@@ -134,8 +134,8 @@ body{
   position:relative;overflow:hidden;padding:56px 60px;
   background:
     radial-gradient(700px 500px at 20% 20%, var(--accent-glow), transparent 60%),
-    linear-gradient(160deg, #0f2855 0%, #020c1a 92%);
-  color:#dbeeff;display:flex;flex-direction:column;justify-content:space-between;
+    linear-gradient(160deg, #064e3b 0%, #021a13 92%);
+  color:#d1fae5;display:flex;flex-direction:column;justify-content:space-between;
 }
 .login-brandside::after{
   content:"";position:absolute;inset:0;opacity:.5;
@@ -146,7 +146,7 @@ body{
 .login-brandside>*{position:relative;z-index:1}
 .brand-lockup{display:flex;align-items:center;gap:12px}
 .brand-mark{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--accent),#93c5fd);color:#0c1e40;box-shadow:0 8px 24px var(--accent-glow)}
+  background:linear-gradient(135deg,var(--accent),#86efac);color:#052e16;box-shadow:0 8px 24px var(--accent-glow)}
 .brand-mark svg{width:24px;height:24px}
 .brand-name{font-size:20px;font-weight:700;letter-spacing:-.02em}
 .brand-name span{opacity:.65;font-weight:500}
