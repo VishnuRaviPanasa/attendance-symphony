@@ -82,7 +82,7 @@ next:
 | Mode | Behaviour |
 |---|---|
 | `merge` *(default)* | branch + commit, then merged into the working tree |
-| `pr` | branch pushed, PR link produced, **working tree untouched** — closest to Symphony |
+| `pr` | branch pushed, **a PR is opened automatically**, working tree untouched — the full loop |
 | `both` | pushed *and* merged, i.e. auto-merge on green — **use this for a demo** |
 | `off` | no branch at all |
 
@@ -94,6 +94,10 @@ next:
 >
 > For a manager demo use `both`: the branch and PR still exist as the audit trail, and the app
 > visibly changes when you refresh.
+>
+> With `scripts/serve-local.mjs` running, `pr` mode is no longer a dead end — merging the PR
+> makes the change appear locally within one poll interval. That is the full pipeline:
+> **ticket → agent → verified → PR opened → you merge → localhost updates itself.**
 
 `pr` and `both` need a git remote; without one the branch is still created locally, so there is
 always a per-ticket artefact to inspect with `git show sym/att-101`.

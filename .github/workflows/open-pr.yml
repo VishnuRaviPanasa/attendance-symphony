@@ -1,0 +1,56 @@
+# Open a pull request automatically for every branch Symphony pushes.
+#
+# The orchestrator pushes sym/<ticket> and produces a compare link, but a link still needs a
+# human to click it — so a completed, verified ticket sat there with no PR. This closes that:
+# the moment a sym/* branch appears, a PR is opened against main with the ticket's own commit
+# message as the body.
+#
+# It uses the built-in GITHUB_TOKEN, so there is no personal access token to create or store.
+#
+# One consequence worth knowing: a PR opened by GITHUB_TOKEN deliberately does not trigger
+# further workflows, so no `pull_request` checks appear on it. The `push` checks from CI still
+# do — the branch push fires those — so the PR is still gated.
+name: Open PR
+
+on:
+  push:
+    branches: ["sym/**"]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Open a PR for this ticket branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          existing=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "PR #$existing already open for $BRANCH — pushing updates it, nothing to do."
+            exit 0
+          fi
+
+          # The orchestrator writes the request, the verification result and the agent into the
+          # commit message, so it is already the right PR description.
+          title=$(git log -1 --format=%s)
+          body=$(git log -1 --format=%b)
+
+          url=$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$title" \
+            --body "${body:-Opened automatically by Symphony.}")
+
+          echo "opened $url"
+          echo "### Symphony opened [$title]($url)" >> "$GITHUB_STEP_SUMMARY"
