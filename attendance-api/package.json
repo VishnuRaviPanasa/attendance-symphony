@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Attendance REST API. Routes are auto-discovered from routes/*.js — drop a file in and the endpoint goes live.",
   "scripts": {
-    "start": "node --watch-path=./lib --watch-path=./data server.js",
+    "start": "node --watch-path=./lib server.js",
     "start:plain": "node server.js",
     "seed": "node scripts/seed.js",
     "test": "node --test",

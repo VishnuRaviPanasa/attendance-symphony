@@ -123,6 +123,16 @@ try {
   });
 } catch { /* optional */ }
 
+// A re-seed rewrites data/attendance.json. Reload the store in place rather than letting the
+// process restart: `--watch-path=./data` turned a re-seed into a restart that raced the still
+// listening server and died with EADDRINUSE.
+try {
+  fs.watch(path.join(__dirname, "data"), async () => {
+    const { reload } = await import("./lib/store.js");
+    try { reload(); console.log("[attendance-api] data changed — store reloaded"); } catch { /* mid-write */ }
+  });
+} catch { /* optional */ }
+
 // Poll fallback: fs.watch misses events on Windows often enough to matter for a live demo.
 let lastSig = "";
 setInterval(() => {
@@ -135,6 +145,34 @@ setInterval(() => {
   lastSig = sig;
 }, 1000);
 
+/**
+ * Keep the demo data covering today.
+ *
+ * The dataset is generated relative to the day it is seeded, but every query asks for "today".
+ * Leave it a few days and today falls off the end, the dashboard reports all 22 employees
+ * unmarked, and the app looks broken when it is merely stale. That has happened three times.
+ * Re-seeding is deterministic and touches nothing an agent owns, so it is safe to do on boot.
+ */
+async function ensureFreshData() {
+  const { allDates, todayKey, reload } = await import("./lib/store.js");
+  let last;
+  try { last = allDates().at(-1); } catch { last = null; }
+  const today = todayKey();
+  if (last && today <= last) return;
+
+  console.warn(`[attendance-api] data ends ${last ?? "never"} but today is ${today} — re-seeding`);
+  const { execFileSync } = await import("node:child_process");
+  try {
+    execFileSync(process.execPath, [path.join(__dirname, "scripts", "seed.js")], { stdio: "pipe" });
+    reload();
+    console.log(`[attendance-api] re-seeded — now covers ${allDates().at(-1)}`);
+  } catch (e) {
+    console.error(`[attendance-api] re-seed failed: ${e.message.split("\n")[0]}`);
+    console.error(`[attendance-api] today's figures will be empty until you run: npm run seed`);
+  }
+}
+
+await ensureFreshData();
 await loadRoutes();
 app.listen(PORT, () => {
   console.log(`\n  Attendance API  →  http://localhost:${PORT}`);
