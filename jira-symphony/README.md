@@ -54,7 +54,7 @@ reports back."*
 | **Reports back to the tracker** | ✅ Jira comment + To Do → In Progress → Done (needs `JIRA_*` in `.env`) |
 | Claim states | ✅ queued → assigned → working → retry → released |
 | Proof of work | ✅ tokens, runtime, cost, files, verified test result, branch + commit |
-| **Opens a Pull Request** | ⚠️ branch + commit per ticket always; pushed with a PR link when a remote exists (`DELIVERY_MODE=pr`) |
+| **Opens a Pull Request** | ✅ branch + commit per ticket, pushed, and a PR opened automatically by `.github/workflows/open-pr.yml` |
 | Execution phase names | ❌ replaced with stages derived from real events (see below) |
 
 ### Verification is independent
