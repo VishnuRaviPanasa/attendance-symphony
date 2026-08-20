@@ -19,23 +19,23 @@ svg:not([width]){width:1em;height:1em;flex:none}
   --font: "Segoe UI Variable","Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
   --mono: "Cascadia Code","JetBrains Mono","SF Mono",Consolas,"Liberation Mono",monospace;
 
-  --bg:        #f0fdf4;
-  --bg-grad:   radial-gradient(1200px 600px at 78% -8%, #dcfce7 0%, rgba(220,252,231,0) 60%), var(--bg);
+  --bg:        #fff0f0;
+  --bg-grad:   radial-gradient(1200px 600px at 78% -8%, #fce7e7 0%, rgba(252,231,231,0) 60%), var(--bg);
   --surface:   #ffffff;
-  --surface-2: #f0fdf4;
-  --surface-3: #dcfce7;
-  --border:    #86efac;
-  --border-2:  #4ade80;
-  --ink:       #052e16;
-  --ink-2:     #14532d;
-  --muted:     #166534;
-  --muted-2:   #2f855a;
+  --surface-2: #fff0f0;
+  --surface-3: #fce7e7;
+  --border:    #fca5a5;
+  --border-2:  #f87171;
+  --ink:       #450a0a;
+  --ink-2:     #7f1d1d;
+  --muted:     #991b1b;
+  --muted-2:   #b91c1c;
 
-  --accent:    #16a34a;
-  --accent-2:  #15803d;
+  --accent:    #dc2626;
+  --accent-2:  #b91c1c;
   --accent-ink:#ffffff;
-  --accent-soft:#dcfce7;
-  --accent-glow: rgba(22,163,74,.18);
+  --accent-soft:#fee2e2;
+  --accent-glow: rgba(220,38,38,.18);
 
   /* status (always paired with icon + label) */
   --present:  #16a34a; --present-soft:#dcf3e3;
@@ -53,23 +53,23 @@ svg:not([width]){width:1em;height:1em;flex:none}
 /* ---- Design tokens : DARK ---- */
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:        #021a13;
-    --bg-grad:   radial-gradient(1200px 620px at 80% -10%, #064e3b 0%, rgba(6,78,59,0) 58%), var(--bg);
-    --surface:   #04231a;
-    --surface-2: #021a13;
-    --surface-3: #063728;
-    --border:    #0f5c43;
-    --border-2:  #127754;
-    --ink:       #e6f7f0;
-    --ink-2:     #a3e6d1;
-    --muted:     #52b793;
-    --muted-2:   #337e63;
+    --bg:        #1a0202;
+    --bg-grad:   radial-gradient(1200px 620px at 80% -10%, #4e0606 0%, rgba(78,6,6,0) 58%), var(--bg);
+    --surface:   #230404;
+    --surface-2: #1a0202;
+    --surface-3: #370606;
+    --border:    #5c0f0f;
+    --border-2:  #771212;
+    --ink:       #f7e6e6;
+    --ink-2:     #e6a3a3;
+    --muted:     #b75252;
+    --muted-2:   #7e3333;
 
-    --accent:    #34d399;
-    --accent-2:  #10b981;
-    --accent-ink:#021a13;
-    --accent-soft: rgba(52,211,153,.14);
-    --accent-glow: rgba(52,211,153,.22);
+    --accent:    #f87171;
+    --accent-2:  #ef4444;
+    --accent-ink:#1a0202;
+    --accent-soft: rgba(248,113,113,.14);
+    --accent-glow: rgba(248,113,113,.22);
 
     --present:  #34d399; --present-soft: rgba(52,211,153,.15);
     --late:     #fbbf24; --late-soft: rgba(251,191,36,.15);
@@ -84,10 +84,10 @@ svg:not([width]){width:1em;height:1em;flex:none}
 }
 /* Explicit theme overrides (toggle wins over OS in both directions) */
 :root[data-theme="light"]{
-  --bg:#f0fdf4;--bg-grad:radial-gradient(1200px 600px at 78% -8%, #dcfce7 0%, rgba(220,252,231,0) 60%), var(--bg);
-  --surface:#ffffff;--surface-2:#f0fdf4;--surface-3:#dcfce7;--border:#86efac;--border-2:#4ade80;
-  --ink:#052e16;--ink-2:#14532d;--muted:#166534;--muted-2:#2f855a;
-  --accent:#16a34a;--accent-2:#15803d;--accent-ink:#ffffff;--accent-soft:#dcfce7;--accent-glow:rgba(22,163,74,.18);
+  --bg:#fff0f0;--bg-grad:radial-gradient(1200px 600px at 78% -8%, #fce7e7 0%, rgba(252,231,231,0) 60%), var(--bg);
+  --surface:#ffffff;--surface-2:#fff0f0;--surface-3:#fce7e7;--border:#fca5a5;--border-2:#f87171;
+  --ink:#450a0a;--ink-2:#7f1d1d;--muted:#991b1b;--muted-2:#b91c1c;
+  --accent:#dc2626;--accent-2:#b91c1c;--accent-ink:#ffffff;--accent-soft:#fee2e2;--accent-glow:rgba(220,38,38,.18);
   --present:#16a34a;--present-soft:#dcf3e3;--late:#c2740a;--late-soft:#f7ecd6;--absent:#dc2626;--absent-soft:#fadddd;
   --leave:#7c3aed;--leave-soft:#ede9fe;--remote:#9333ea;--remote-soft:#efdcfb;
   --shadow-sm:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.04);
@@ -95,10 +95,10 @@ svg:not([width]){width:1em;height:1em;flex:none}
   --shadow-lg:0 18px 48px rgba(15,23,42,.16),0 6px 16px rgba(15,23,42,.08);
 }
 :root[data-theme="dark"]{
-  --bg:#021a13;--bg-grad:radial-gradient(1200px 620px at 80% -10%, #064e3b 0%, rgba(6,78,59,0) 58%), var(--bg);
-  --surface:#04231a;--surface-2:#021a13;--surface-3:#063728;--border:#0f5c43;--border-2:#127754;
-  --ink:#e6f7f0;--ink-2:#a3e6d1;--muted:#52b793;--muted-2:#337e63;
-  --accent:#34d399;--accent-2:#10b981;--accent-ink:#021a13;--accent-soft:rgba(52,211,153,.14);--accent-glow:rgba(52,211,153,.22);
+  --bg:#1a0202;--bg-grad:radial-gradient(1200px 620px at 80% -10%, #4e0606 0%, rgba(78,6,6,0) 58%), var(--bg);
+  --surface:#230404;--surface-2:#1a0202;--surface-3:#370606;--border:#5c0f0f;--border-2:#771212;
+  --ink:#f7e6e6;--ink-2:#e6a3a3;--muted:#b75252;--muted-2:#7e3333;
+  --accent:#f87171;--accent-2:#ef4444;--accent-ink:#1a0202;--accent-soft:rgba(248,113,113,.14);--accent-glow:rgba(248,113,113,.22);
   --present:#34d399;--present-soft:rgba(52,211,153,.15);--late:#fbbf24;--late-soft:rgba(251,191,36,.15);
   --absent:#f87171;--absent-soft:rgba(248,113,113,.15);--leave:#a78bfa;--leave-soft:rgba(167,139,250,.15);
   --remote:#e879f9;--remote-soft:rgba(232,121,249,.15);
@@ -125,8 +125,8 @@ body{
   position:relative;overflow:hidden;padding:56px 60px;
   background:
     radial-gradient(700px 500px at 20% 20%, var(--accent-glow), transparent 60%),
-    linear-gradient(160deg, #064e3b 0%, #021a13 92%);
-  color:#d1fae5;display:flex;flex-direction:column;justify-content:space-between;
+    linear-gradient(160deg, #4e0606 0%, #1a0202 92%);
+  color:#fde8e8;display:flex;flex-direction:column;justify-content:space-between;
 }
 .login-brandside::after{
   content:"";position:absolute;inset:0;opacity:.5;
@@ -137,19 +137,19 @@ body{
 .login-brandside>*{position:relative;z-index:1}
 .brand-lockup{display:flex;align-items:center;gap:12px}
 .brand-mark{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--accent),#86efac);color:#052e16;box-shadow:0 8px 24px var(--accent-glow)}
+  background:linear-gradient(135deg,var(--accent),#fca5a5);color:#ffffff;box-shadow:0 8px 24px var(--accent-glow)}
 .brand-mark svg{width:24px;height:24px}
 .brand-name{font-size:20px;font-weight:700;letter-spacing:-.02em}
 .brand-name span{opacity:.65;font-weight:500}
 .login-hero h1{font-size:42px;line-height:1.05;letter-spacing:-.03em;margin:0 0 16px;text-wrap:balance;font-weight:700}
-.login-hero p{font-size:16px;max-width:44ch;color:#bfe9e3;margin:0}
+.login-hero p{font-size:16px;max-width:44ch;color:#fecaca;margin:0}
 .login-featlist{display:flex;flex-direction:column;gap:14px;margin-top:30px}
-.login-feat{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:#d7f5f0}
+.login-feat{display:flex;gap:12px;align-items:flex-start;font-size:14.5px;color:#fde8e8}
 .login-feat .dot{margin-top:3px;width:20px;height:20px;border-radius:6px;background:rgba(248,113,113,.16);
   color:#fca5a5;display:grid;place-items:center;flex:none}
 .login-feat .dot svg{width:13px;height:13px}
-.login-foot{font-size:12.5px;color:#7fb8b1;display:flex;gap:8px;align-items:center}
-.login-foot .pip{width:6px;height:6px;border-radius:50%;background:#34d399;box-shadow:0 0 0 3px rgba(52,211,153,.2)}
+.login-foot{font-size:12.5px;color:#f87171;display:flex;gap:8px;align-items:center}
+.login-foot .pip{width:6px;height:6px;border-radius:50%;background:#f87171;box-shadow:0 0 0 3px rgba(248,113,113,.2)}
 
 .login-formside{display:flex;align-items:center;justify-content:center;padding:40px;background:var(--surface)}
 .login-card{width:100%;max-width:390px}
